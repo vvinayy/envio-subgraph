@@ -326,9 +326,9 @@ export const getAddressData = experimental_createEffect(
 
 // Rate limiting configuration
 const RATE_LIMIT_CONFIG = {
-  delayBetweenEndpoints: 8000, // 8 seconds between trying different gateways
-  delayOn429: 15000, // 15 seconds when rate limited
-  delayOnError: 10000, // 10 seconds on other errors
+  delayBetweenEndpoints: 3000, // 3 seconds between trying different gateways
+  delayOn429: 10000, // 10 seconds when rate limited
+  delayOnError: 5000, // 10 seconds on other errors
   maxRetries: 1, // Max retries per endpoint (reduced to avoid too many failures)
 };
 

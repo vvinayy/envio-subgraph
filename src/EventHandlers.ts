@@ -33,6 +33,20 @@ ERC1967Proxy.DataGroupConsensusUpdated.handler(async ({ event, context }) => {
 });
 
 ERC1967Proxy.DataGroupHeartBeat.handler(async ({ event, context }) => {
+  // Only process events from specific submitters
+  const allowedSubmitters = [
+    "0x2C810CD120eEb840a7012b77a2B4F19889Ecf65C",
+    "0x2b4c5ebe66866dc0b88a05ffa4979d8830a889e9"
+  ];
+
+  if (!allowedSubmitters.includes(event.params.submitter)) {
+    context.log.info(`Skipping HeartBeat event - only processing events from specific submitters`, {
+      submitter: event.params.submitter,
+      propertyHash: event.params.propertyHash
+    });
+    return;
+  }
+
   const entity: ERC1967Proxy_DataGroupHeartBeat = {
     id: `${event.chainId}_${event.block.number}_${event.logIndex}`,
     propertyHash: event.params.propertyHash,
@@ -156,6 +170,20 @@ ERC1967Proxy.DataGroupHeartBeat.handler(async ({ event, context }) => {
 });
 
 ERC1967Proxy.DataSubmitted.handler(async ({ event, context }) => {
+  // Only process events from specific submitters
+  const allowedSubmitters = [
+    "0x2C810CD120eEb840a7012b77a2B4F19889Ecf65C",
+    "0x2b4c5ebe66866dc0b88a05ffa4979d8830a889e9"
+  ];
+
+  if (!allowedSubmitters.includes(event.params.submitter)) {
+    context.log.info(`Skipping DataSubmitted event - only processing events from specific submitters`, {
+      submitter: event.params.submitter,
+      propertyHash: event.params.propertyHash
+    });
+    return;
+  }
+
   const entity: ERC1967Proxy_DataSubmitted = {
     id: `${event.chainId}_${event.block.number}_${event.logIndex}`,
     propertyHash: event.params.propertyHash,
