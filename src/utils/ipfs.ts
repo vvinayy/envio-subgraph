@@ -96,10 +96,10 @@ const endpoints = [
   // Multiple public gateways for reliability
   "https://moral-aqua-catfish.myfilebase.com/ipfs",
   "https://ipfs.io/ipfs",
-  "https://dry-fuchsia-ox.myfilebase.com/ipfs/",
-  "https://indexing1.myfilebase.com/ipfs/",
+  "https://dry-fuchsia-ox.myfilebase.com/ipfs",
+  "https://indexing1.myfilebase.com/ipfs",
   "https://ipfs.io/ipfs",
-  "https://indexing2.myfilebase.com/ipfs/",
+  "https://indexing2.myfilebase.com/ipfs",
   "https://gateway.ipfs.io/ipfs",
   'https://dweb.link/ipfs',
   'https://w3s.link/ipfs',
