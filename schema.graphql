@@ -1,0 +1,82 @@
+type ERC1967Proxy_DataGroupConsensusUpdated {
+  id: ID!
+  dataGroupHash: String!
+  oldValue: BigInt!
+  newValue: BigInt!
+}
+
+type ERC1967Proxy_DataGroupHeartBeat {
+  id: ID!
+  propertyHash: String!
+  dataGroupHash: String!
+  dataHash: String!
+  submitter: String!
+}
+
+type ERC1967Proxy_DataSubmitted {
+  id: ID!
+  propertyHash: String!
+  dataGroupHash: String!
+  submitter: String!
+  dataHash: String!
+}
+
+type ERC1967Proxy_Initialized {
+  id: ID!
+  version: BigInt!
+}
+
+type ERC1967Proxy_MinimumConsensusUpdated {
+  id: ID!
+  oldValue: BigInt!
+  newValue: BigInt!
+}
+
+type ERC1967Proxy_RoleAdminChanged {
+  id: ID!
+  role: String!
+  previousAdminRole: String!
+  newAdminRole: String!
+}
+
+type ERC1967Proxy_RoleGranted {
+  id: ID!
+  role: String!
+  account: String!
+  sender: String!
+}
+
+type ERC1967Proxy_RoleRevoked {
+  id: ID!
+  role: String!
+  account: String!
+  sender: String!
+}
+
+type ERC1967Proxy_Upgraded {
+  id: ID!
+  implementation: String!
+}
+
+type Structure {
+  id: ID!
+  roof_date: String
+}
+
+
+type Address {
+  id: ID!
+  county_name: String
+  full_address: String
+}
+
+type DataSubmittedWithLabel {
+  id: ID!
+  propertyHash: String!
+  submitter: String!
+  dataHash: String!
+  cid: String!
+  label: String!
+  structure: Structure
+  address: Address
+}
