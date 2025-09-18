@@ -111,7 +111,7 @@ const endpoints = [
   { url: "https://ipfs.io/ipfs", token: null },
   { url: "https://bronze-blank-cod-736.mypinata.cloud/ipfs", token: "0EicEGVVMxNrYgog3s1-Aud_3v32eSvF9nYypTkQ4Qy-G4M8N-zdBvL1DNYjlupe" },
   { url: "https://ipfs.io/ipfs", token: null },
-  { url: "https://indexing2.myfilebase.com/ipfs/", token: null },
+  { url: "https://indexing2.myfilebase.com/ipfs", token: null },
   { url: "https://gateway.ipfs.io/ipfs", token: null },
   { url: "https://dweb.link/ipfs", token: null },
   { url: "https://w3s.link/ipfs", token: null },
