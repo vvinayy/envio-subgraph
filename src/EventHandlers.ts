@@ -15,9 +15,10 @@ import {
   DataSubmittedWithLabel,
   Structure,
   Address,
+  Property,
 } from "generated";
 
-import { bytes32ToCID, getIpfsMetadata, getRelationshipData, getStructureData, getAddressData } from "./utils/ipfs";
+import { bytes32ToCID, getIpfsMetadata, getRelationshipData, getStructureData, getAddressData, getPropertyData } from "./utils/ipfs";
 
 ERC1967Proxy.DataGroupConsensusUpdated.handler(async ({ event, context }) => {
   const entity: ERC1967Proxy_DataGroupConsensusUpdated = {
@@ -69,6 +70,7 @@ ERC1967Proxy.DataGroupHeartBeat.handler(async ({ event, context }) => {
     let existingEntity = await context.DataSubmittedWithLabel.get(propertyId);
     let structureId = existingEntity?.structure_id;
     let addressId = existingEntity?.address_id;
+    let propertyDataId = existingEntity?.property_id;
 
     if (metadata.label === "County") {
       // Process structure data if available
@@ -76,6 +78,8 @@ ERC1967Proxy.DataGroupHeartBeat.handler(async ({ event, context }) => {
       if (structureCid) {
         try {
           const relationshipData = await context.effect(getRelationshipData, structureCid);
+
+          // Fetch structure data from "to" part
           const structureDataCid = relationshipData.to["/"];
           const structureData = await context.effect(getStructureData, structureDataCid);
 
@@ -90,8 +94,30 @@ ERC1967Proxy.DataGroupHeartBeat.handler(async ({ event, context }) => {
             structureId,
             roof_date: structureData.roof_date
           });
+
+          // Fetch property data from "from" part if available
+          if (relationshipData.from && relationshipData.from["/"]) {
+            const propertyDataCid = relationshipData.from["/"];
+            const propertyData = await context.effect(getPropertyData, propertyDataCid);
+
+            propertyDataId = propertyDataCid; // Use the CID as the property ID
+            const propertyEntity: Property = {
+              id: propertyDataId,
+              property_type: propertyData.property_type || undefined,
+              property_structure_built_year: propertyData.property_structure_built_year || undefined,
+              property_effective_built_year: propertyData.property_effective_built_year || undefined
+            };
+            context.Property.set(propertyEntity);
+
+            context.log.info(`Updated Property entity from HeartBeat`, {
+              propertyDataId,
+              property_type: propertyData.property_type,
+              property_structure_built_year: propertyData.property_structure_built_year,
+              property_effective_built_year: propertyData.property_effective_built_year
+            });
+          }
         } catch (structureError) {
-          context.log.warn(`Failed to fetch structure data from HeartBeat`, {
+          context.log.warn(`Failed to fetch structure/property data from HeartBeat`, {
             cid,
             structureCid,
             error: (structureError as Error).message
@@ -151,7 +177,8 @@ ERC1967Proxy.DataGroupHeartBeat.handler(async ({ event, context }) => {
       cid: cid,
       label: metadata.label,
       structure_id: structureId,
-      address_id: addressId
+      address_id: addressId,
+      property_id: propertyDataId
     };
 
     context.DataSubmittedWithLabel.set(labelEntity);
@@ -159,7 +186,8 @@ ERC1967Proxy.DataGroupHeartBeat.handler(async ({ event, context }) => {
       propertyId,
       label: metadata.label,
       structureId,
-      addressId
+      addressId,
+      propertyDataId
     });
   } catch (error) {
     context.log.warn(`Failed to get metadata for CID from HeartBeat`, {
@@ -173,7 +201,7 @@ ERC1967Proxy.DataSubmitted.handler(async ({ event, context }) => {
   // Only process events from specific submitters
   const allowedSubmitters = [
     "0x2C810CD120eEb840a7012b77a2B4F19889Ecf65C",
-    "0x2b4c5ebe66866dc0b88a05ffa4979d8830a889e9"
+    "0x2B4C5eBE66866dc0b88A05fFa4979D8830a889E9"
   ];
 
   if (!allowedSubmitters.includes(event.params.submitter)) {
@@ -206,6 +234,7 @@ ERC1967Proxy.DataSubmitted.handler(async ({ event, context }) => {
     let existingEntity = await context.DataSubmittedWithLabel.get(propertyId);
     let structureId = existingEntity?.structure_id;
     let addressId = existingEntity?.address_id;
+    let propertyDataId = existingEntity?.property_id;
 
     if (metadata.label === "County") {
       // Process structure data if available
@@ -213,6 +242,8 @@ ERC1967Proxy.DataSubmitted.handler(async ({ event, context }) => {
       if (structureCid) {
         try {
           const relationshipData = await context.effect(getRelationshipData, structureCid);
+
+          // Fetch structure data from "to" part
           const structureDataCid = relationshipData.to["/"];
           const structureData = await context.effect(getStructureData, structureDataCid);
 
@@ -227,8 +258,30 @@ ERC1967Proxy.DataSubmitted.handler(async ({ event, context }) => {
             structureId,
             roof_date: structureData.roof_date
           });
+
+          // Fetch property data from "from" part if available
+          if (relationshipData.from && relationshipData.from["/"]) {
+            const propertyDataCid = relationshipData.from["/"];
+            const propertyData = await context.effect(getPropertyData, propertyDataCid);
+
+            propertyDataId = propertyDataCid; // Use the CID as the property ID
+            const propertyEntity: Property = {
+              id: propertyDataId,
+              property_type: propertyData.property_type || undefined,
+              property_structure_built_year: propertyData.property_structure_built_year || undefined,
+              property_effective_built_year: propertyData.property_effective_built_year || undefined
+            };
+            context.Property.set(propertyEntity);
+
+            context.log.info(`Updated Property entity`, {
+              propertyDataId,
+              property_type: propertyData.property_type,
+              property_structure_built_year: propertyData.property_structure_built_year,
+              property_effective_built_year: propertyData.property_effective_built_year
+            });
+          }
         } catch (structureError) {
-          context.log.warn(`Failed to fetch structure data`, {
+          context.log.warn(`Failed to fetch structure/property data`, {
             cid,
             structureCid,
             error: (structureError as Error).message
@@ -288,7 +341,8 @@ ERC1967Proxy.DataSubmitted.handler(async ({ event, context }) => {
       cid: cid,
       label: metadata.label,
       structure_id: structureId,
-      address_id: addressId
+      address_id: addressId,
+      property_id: propertyDataId
     };
 
     context.DataSubmittedWithLabel.set(labelEntity);
@@ -296,7 +350,8 @@ ERC1967Proxy.DataSubmitted.handler(async ({ event, context }) => {
       propertyId,
       label: metadata.label,
       structureId,
-      addressId
+      addressId,
+      propertyDataId
     });
   } catch (error) {
     context.log.warn(`Failed to get metadata for CID`, {

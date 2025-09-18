@@ -70,6 +70,13 @@ type Address {
   full_address: String
 }
 
+type Property {
+  id: ID!
+  property_type: String
+  property_structure_built_year: String
+  property_effective_built_year: String
+}
+
 type DataSubmittedWithLabel {
   id: ID!
   propertyHash: String!
@@ -79,4 +86,5 @@ type DataSubmittedWithLabel {
   label: String!
   structure: Structure
   address: Address
+  property: Property
 }

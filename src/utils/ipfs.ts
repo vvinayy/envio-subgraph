@@ -79,8 +79,18 @@ const addressSchema = S.schema({
   request_identifier: S.optional(S.string),
 });
 
+// Schema for property data (for County processing)
+const propertySchema = S.schema({
+  property_type: S.optional(S.string),
+  property_structure_built_year: S.optional(S.string),
+  property_effective_built_year: S.optional(S.string),
+});
+
 // Schema for relationship data (from/to structure)
 const relationshipSchema = S.schema({
+  from: S.optional(S.schema({
+    "/": S.string
+  })),
   to: S.schema({
     "/": S.string
   })
@@ -90,6 +100,7 @@ const relationshipSchema = S.schema({
 type IpfsMetadata = S.Infer<typeof ipfsMetadataSchema>;
 type StructureData = S.Infer<typeof structureSchema>;
 type AddressData = S.Infer<typeof addressSchema>;
+type PropertyData = S.Infer<typeof propertySchema>;
 type RelationshipData = S.Infer<typeof relationshipSchema>;
 
 const endpoints = [
@@ -322,6 +333,68 @@ export const getAddressData = experimental_createEffect(
 
     throw new Error(`Failed to fetch address data for CID: ${cid}`);
   }
+);
+
+// Fetch property data (property_type, built years)
+export const getPropertyData = experimental_createEffect(
+    {
+      name: "getPropertyData",
+      input: S.string,
+      output: propertySchema,
+      cache: true,
+    },
+    async ({ input: cid, context }) => {
+      for (let i = 0; i < endpoints.length; i++) {
+        const endpoint = endpoints[i];
+
+        try {
+          context.log.info(`Fetching property data from gateway`, { cid, endpoint });
+
+          const response = await fetch(`${endpoint}/${cid}`);
+          if (response.ok) {
+            const data: any = await response.json();
+            if (data && typeof data === 'object') {
+              context.log.info(`Successfully fetched property data`, {
+                cid,
+                property_type: data.property_type,
+                property_structure_built_year: data.property_structure_built_year,
+                property_effective_built_year: data.property_effective_built_year
+              });
+
+              return {
+                property_type: data.property_type || undefined,
+                property_structure_built_year: data.property_structure_built_year || undefined,
+                property_effective_built_year: data.property_effective_built_year || undefined
+              };
+            }
+          } else {
+            context.log.warn(`Property data fetch failed - HTTP error`, {
+              cid,
+              endpoint,
+              status: response.status,
+              statusText: response.statusText
+            });
+          }
+        } catch (e) {
+          const error = e as Error;
+          context.log.warn(`Failed to fetch property data`, {
+            cid,
+            endpoint,
+            error: error.message,
+            errorName: error.name,
+            errorStack: error.stack,
+            errorCause: error.cause
+          });
+        }
+
+        // Delay between endpoints
+        if (i < endpoints.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_CONFIG.delayBetweenEndpoints));
+        }
+      }
+
+      throw new Error(`Failed to fetch property data for CID: ${cid}`);
+    }
 );
 
 // Rate limiting configuration
