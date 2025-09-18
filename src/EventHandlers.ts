@@ -80,47 +80,65 @@ ERC1967Proxy.DataGroupHeartBeat.handler(async ({ event, context }) => {
           const relationshipData = await context.effect(getRelationshipData, structureCid);
 
           // Fetch structure data from "to" part
-          const structureDataCid = relationshipData.to["/"];
-          const structureData = await context.effect(getStructureData, structureDataCid);
+          try {
+            const structureDataCid = relationshipData.to["/"];
+            const structureData = await context.effect(getStructureData, structureDataCid);
 
-          structureId = structureDataCid; // Use the CID as the structure ID
-          const structureEntity: Structure = {
-            id: structureId,
-            roof_date: structureData.roof_date || undefined
-          };
-          context.Structure.set(structureEntity);
+            structureId = structureDataCid; // Use the CID as the structure ID
+            const structureEntity: Structure = {
+              id: structureId,
+              roof_date: structureData.roof_date || undefined
+            };
+            context.Structure.set(structureEntity);
 
-          context.log.info(`Updated Structure entity from HeartBeat`, {
-            structureId,
-            roof_date: structureData.roof_date
-          });
+            context.log.info(`Updated Structure entity from HeartBeat`, {
+              structureId,
+              roof_date: structureData.roof_date
+            });
+          } catch (structureError) {
+            context.log.warn(`Failed to fetch STRUCTURE data from HeartBeat`, {
+              cid,
+              structureCid,
+              structureDataCid: relationshipData.to?.["/"] || "missing",
+              error: (structureError as Error).message
+            });
+          }
 
           // Fetch property data from "from" part if available
           if (relationshipData.from && relationshipData.from["/"]) {
-            const propertyDataCid = relationshipData.from["/"];
-            const propertyData = await context.effect(getPropertyData, propertyDataCid);
+            try {
+              const propertyDataCid = relationshipData.from["/"];
+              const propertyData = await context.effect(getPropertyData, propertyDataCid);
 
-            propertyDataId = propertyDataCid; // Use the CID as the property ID
-            const propertyEntity: Property = {
-              id: propertyDataId,
-              property_type: propertyData.property_type || undefined,
-              property_structure_built_year: propertyData.property_structure_built_year || undefined,
-              property_effective_built_year: propertyData.property_effective_built_year || undefined
-            };
-            context.Property.set(propertyEntity);
+              propertyDataId = propertyDataCid; // Use the CID as the property ID
+              const propertyEntity: Property = {
+                id: propertyDataId,
+                property_type: propertyData.property_type || undefined,
+                property_structure_built_year: propertyData.property_structure_built_year || undefined,
+                property_effective_built_year: propertyData.property_effective_built_year || undefined
+              };
+              context.Property.set(propertyEntity);
 
-            context.log.info(`Updated Property entity from HeartBeat`, {
-              propertyDataId,
-              property_type: propertyData.property_type,
-              property_structure_built_year: propertyData.property_structure_built_year,
-              property_effective_built_year: propertyData.property_effective_built_year
-            });
+              context.log.info(`Updated Property entity from HeartBeat`, {
+                propertyDataId,
+                property_type: propertyData.property_type,
+                property_structure_built_year: propertyData.property_structure_built_year,
+                property_effective_built_year: propertyData.property_effective_built_year
+              });
+            } catch (propertyError) {
+              context.log.warn(`Failed to fetch PROPERTY data from HeartBeat`, {
+                cid,
+                structureCid,
+                propertyDataCid: relationshipData.from["/"],
+                error: (propertyError as Error).message
+              });
+            }
           }
-        } catch (structureError) {
-          context.log.warn(`Failed to fetch structure/property data from HeartBeat`, {
+        } catch (relationshipError) {
+          context.log.warn(`Failed to fetch RELATIONSHIP data from HeartBeat`, {
             cid,
             structureCid,
-            error: (structureError as Error).message
+            error: (relationshipError as Error).message
           });
         }
       }
@@ -200,7 +218,8 @@ ERC1967Proxy.DataGroupHeartBeat.handler(async ({ event, context }) => {
 ERC1967Proxy.DataSubmitted.handler(async ({ event, context }) => {
   // Only process events from specific submitters
   const allowedSubmitters = [
-    "0x2C810CD120eEb840a7012b77a2B4F19889Ecf65C"
+    "0x2C810CD120eEb840a7012b77a2B4F19889Ecf65C",
+    "0x2B4C5eBE66866dc0b88A05fFa4979D8830a889E9"
   ];
 
   if (!allowedSubmitters.includes(event.params.submitter)) {
@@ -243,47 +262,65 @@ ERC1967Proxy.DataSubmitted.handler(async ({ event, context }) => {
           const relationshipData = await context.effect(getRelationshipData, structureCid);
 
           // Fetch structure data from "to" part
-          const structureDataCid = relationshipData.to["/"];
-          const structureData = await context.effect(getStructureData, structureDataCid);
+          try {
+            const structureDataCid = relationshipData.to["/"];
+            const structureData = await context.effect(getStructureData, structureDataCid);
 
-          structureId = structureDataCid; // Use the CID as the structure ID
-          const structureEntity: Structure = {
-            id: structureId,
-            roof_date: structureData.roof_date || undefined
-          };
-          context.Structure.set(structureEntity);
+            structureId = structureDataCid; // Use the CID as the structure ID
+            const structureEntity: Structure = {
+              id: structureId,
+              roof_date: structureData.roof_date || undefined
+            };
+            context.Structure.set(structureEntity);
 
-          context.log.info(`Updated Structure entity`, {
-            structureId,
-            roof_date: structureData.roof_date
-          });
+            context.log.info(`Updated Structure entity`, {
+              structureId,
+              roof_date: structureData.roof_date
+            });
+          } catch (structureError) {
+            context.log.warn(`Failed to fetch STRUCTURE data`, {
+              cid,
+              structureCid,
+              structureDataCid: relationshipData.to?.["/"] || "missing",
+              error: (structureError as Error).message
+            });
+          }
 
           // Fetch property data from "from" part if available
           if (relationshipData.from && relationshipData.from["/"]) {
-            const propertyDataCid = relationshipData.from["/"];
-            const propertyData = await context.effect(getPropertyData, propertyDataCid);
+            try {
+              const propertyDataCid = relationshipData.from["/"];
+              const propertyData = await context.effect(getPropertyData, propertyDataCid);
 
-            propertyDataId = propertyDataCid; // Use the CID as the property ID
-            const propertyEntity: Property = {
-              id: propertyDataId,
-              property_type: propertyData.property_type || undefined,
-              property_structure_built_year: propertyData.property_structure_built_year || undefined,
-              property_effective_built_year: propertyData.property_effective_built_year || undefined
-            };
-            context.Property.set(propertyEntity);
+              propertyDataId = propertyDataCid; // Use the CID as the property ID
+              const propertyEntity: Property = {
+                id: propertyDataId,
+                property_type: propertyData.property_type || undefined,
+                property_structure_built_year: propertyData.property_structure_built_year || undefined,
+                property_effective_built_year: propertyData.property_effective_built_year || undefined
+              };
+              context.Property.set(propertyEntity);
 
-            context.log.info(`Updated Property entity`, {
-              propertyDataId,
-              property_type: propertyData.property_type,
-              property_structure_built_year: propertyData.property_structure_built_year,
-              property_effective_built_year: propertyData.property_effective_built_year
-            });
+              context.log.info(`Updated Property entity`, {
+                propertyDataId,
+                property_type: propertyData.property_type,
+                property_structure_built_year: propertyData.property_structure_built_year,
+                property_effective_built_year: propertyData.property_effective_built_year
+              });
+            } catch (propertyError) {
+              context.log.warn(`Failed to fetch PROPERTY data`, {
+                cid,
+                structureCid,
+                propertyDataCid: relationshipData.from["/"],
+                error: (propertyError as Error).message
+              });
+            }
           }
-        } catch (structureError) {
-          context.log.warn(`Failed to fetch structure/property data`, {
+        } catch (relationshipError) {
+          context.log.warn(`Failed to fetch RELATIONSHIP data`, {
             cid,
             structureCid,
-            error: (structureError as Error).message
+            error: (relationshipError as Error).message
           });
         }
       }
