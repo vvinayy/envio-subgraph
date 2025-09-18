@@ -7,7 +7,7 @@ export function bytes32ToCID(dataHashHex: string): string {
 
   // Convert hex string to bytes
   const hashBytes = new Uint8Array(
-    cleanHex.match(/.{2}/g)!.map(byte => parseInt(byte, 16))
+      cleanHex.match(/.{2}/g)!.map(byte => parseInt(byte, 16))
   );
 
   // Create multihash (sha256 + 32 bytes + hash)
@@ -103,31 +103,41 @@ type AddressData = S.Infer<typeof addressSchema>;
 type PropertyData = S.Infer<typeof propertySchema>;
 type RelationshipData = S.Infer<typeof relationshipSchema>;
 
+// Gateway configuration with optional authentication tokens
 const endpoints = [
   // Multiple public gateways for reliability
-  "https://moral-aqua-catfish.myfilebase.com/ipfs",
-  "https://ipfs.io/ipfs",
-  "https://dry-fuchsia-ox.myfilebase.com/ipfs",
-  "https://indexing1.myfilebase.com/ipfs",
-  "https://ipfs.io/ipfs",
-  "https://indexing2.myfilebase.com/ipfs",
-  "https://gateway.ipfs.io/ipfs",
-  'https://dweb.link/ipfs',
-  'https://w3s.link/ipfs',
-  "https://gateway.pinata.cloud/ipfs",
-  "https://cloudflare-ipfs.com/ipfs",
-
+  { url: "https://sapphire-academic-leech-250.mypinata.cloud/ipfs", token: "CcV1DorYnAo9eZr_P4DXg8TY4SB-QuUw_b6C70JFs2M8aY0fJudBnle2mUyCYyTu" },
+  { url: "https://moral-aqua-catfish.myfilebase.com/ipfs", token: null },
+  { url: "https://ipfs.io/ipfs", token: null },
+  { url: "https://bronze-blank-cod-736.mypinata.cloud/ipfs", token: "0EicEGVVMxNrYgog3s1-Aud_3v32eSvF9nYypTkQ4Qy-G4M8N-zdBvL1DNYjlupe" },
+  { url: "https://ipfs.io/ipfs", token: null },
+  { url: "https://indexing2.myfilebase.com/ipfs/", token: null },
+  { url: "https://gateway.ipfs.io/ipfs", token: null },
+  { url: "https://dweb.link/ipfs", token: null },
+  { url: "https://w3s.link/ipfs", token: null },
+  { url: "https://gateway.pinata.cloud/ipfs", token: null },
+  { url: "https://cloudflare-ipfs.com/ipfs", token: null },
 ];
 
+// Helper function to build URL with optional token
+function buildGatewayUrl(baseUrl: string, cid: string, token: string | null): string {
+  const url = `${baseUrl}/${cid}`;
+  if (token) {
+    return `${url}?pinataGatewayToken=${token}`;
+  }
+  return url;
+}
+
 async function fetchFromEndpoint(
-  context: EffectContext,
-  endpoint: string,
-  cid: string
+    context: EffectContext,
+    endpoint: { url: string; token: string | null },
+    cid: string
 ): Promise<IpfsMetadata | null> {
   try {
-    context.log.info(`Fetching IPFS content from gateway`, { cid, endpoint });
+    const fullUrl = buildGatewayUrl(endpoint.url, cid, endpoint.token);
+    context.log.info(`Fetching IPFS content from gateway`, { cid, endpoint: endpoint.url });
 
-    const response = await fetch(`${endpoint}/${cid}`);
+    const response = await fetch(fullUrl);
 
     if (response.ok) {
       const metadata: any = await response.json();
@@ -140,16 +150,16 @@ async function fetchFromEndpoint(
           relationships: metadata.relationships
         };
       } else {
-        context.log.warn(`No label field found in IPFS metadata`, { cid, endpoint });
+        context.log.warn(`No label field found in IPFS metadata`, { cid, endpoint: endpoint.url });
         return null;
       }
     } else {
       if (response.status === 429) {
-        context.log.warn(`Rate limited by IPFS gateway`, { cid, endpoint });
+        context.log.warn(`Rate limited by IPFS gateway`, { cid, endpoint: endpoint.url });
       } else {
         context.log.warn(`IPFS gateway returned error`, {
           cid,
-          endpoint,
+          endpoint: endpoint.url,
           status: response.status,
           statusText: response.statusText
         });
@@ -160,7 +170,7 @@ async function fetchFromEndpoint(
     const error = e as Error;
     context.log.warn(`IPFS fetch failed`, {
       cid,
-      endpoint,
+      endpoint: endpoint.url,
       error: error.message,
       errorName: error.name,
       errorStack: error.stack,
@@ -172,167 +182,170 @@ async function fetchFromEndpoint(
 
 // Fetch relationship data (from/to structure)
 export const getRelationshipData = experimental_createEffect(
-  {
-    name: "getRelationshipData",
-    input: S.string,
-    output: relationshipSchema,
-    cache: true,
-  },
-  async ({ input: cid, context }) => {
-    for (let i = 0; i < endpoints.length; i++) {
-      const endpoint = endpoints[i];
+    {
+      name: "getRelationshipData",
+      input: S.string,
+      output: relationshipSchema,
+      cache: true,
+    },
+    async ({ input: cid, context }) => {
+      for (let i = 0; i < endpoints.length; i++) {
+        const endpoint = endpoints[i];
 
-      try {
-        context.log.info(`Fetching relationship data from gateway`, { cid, endpoint });
+        try {
+          const fullUrl = buildGatewayUrl(endpoint.url, cid, endpoint.token);
+          context.log.info(`Fetching relationship data from gateway`, { cid, endpoint: endpoint.url });
 
-        const response = await fetch(`${endpoint}/${cid}`);
-        if (response.ok) {
-          const data: any = await response.json();
-          if (data && data.to && data.to["/"]) {
-            context.log.info(`Successfully fetched relationship data`, { cid });
-            return data;
+          const response = await fetch(fullUrl);
+          if (response.ok) {
+            const data: any = await response.json();
+            if (data && data.to && data.to["/"]) {
+              context.log.info(`Successfully fetched relationship data`, { cid });
+              return data;
+            }
+          } else {
+            context.log.warn(`Relationship data fetch failed - HTTP error`, {
+              cid,
+              endpoint: endpoint.url,
+              status: response.status,
+              statusText: response.statusText
+            });
           }
-        } else {
-          context.log.warn(`Relationship data fetch failed - HTTP error`, {
+        } catch (e) {
+          const error = e as Error;
+          context.log.warn(`Failed to fetch relationship data`, {
             cid,
-            endpoint,
-            status: response.status,
-            statusText: response.statusText
+            endpoint: endpoint.url,
+            error: error.message,
+            errorName: error.name,
+            errorStack: error.stack,
+            errorCause: error.cause
           });
         }
-      } catch (e) {
-        const error = e as Error;
-        context.log.warn(`Failed to fetch relationship data`, {
-          cid,
-          endpoint,
-          error: error.message,
-          errorName: error.name,
-          errorStack: error.stack,
-          errorCause: error.cause
-        });
+
+        // Delay between endpoints
+        if (i < endpoints.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_CONFIG.delayBetweenEndpoints));
+        }
       }
 
-      // Delay between endpoints
-      if (i < endpoints.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_CONFIG.delayBetweenEndpoints));
-      }
+      throw new Error(`Failed to fetch relationship data for CID: ${cid}`);
     }
-
-    throw new Error(`Failed to fetch relationship data for CID: ${cid}`);
-  }
 );
 
 // Fetch structure data (roof_date)
 export const getStructureData = experimental_createEffect(
-  {
-    name: "getStructureData",
-    input: S.string,
-    output: structureSchema,
-    cache: true,
-  },
-  async ({ input: cid, context }) => {
-    for (let i = 0; i < endpoints.length; i++) {
-      const endpoint = endpoints[i];
+    {
+      name: "getStructureData",
+      input: S.string,
+      output: structureSchema,
+      cache: true,
+    },
+    async ({ input: cid, context }) => {
+      for (let i = 0; i < endpoints.length; i++) {
+        const endpoint = endpoints[i];
 
-      try {
-        context.log.info(`Fetching structure data from gateway`, { cid, endpoint });
+        try {
+          const fullUrl = buildGatewayUrl(endpoint.url, cid, endpoint.token);
+          context.log.info(`Fetching structure data from gateway`, { cid, endpoint: endpoint.url });
 
-        const response = await fetch(`${endpoint}/${cid}`);
-        if (response.ok) {
-          const data: any = await response.json();
-          if (data && typeof data === 'object') {
-            context.log.info(`Successfully fetched structure data`, { cid, roof_date: data.roof_date });
-            return { roof_date: data.roof_date };
+          const response = await fetch(fullUrl);
+          if (response.ok) {
+            const data: any = await response.json();
+            if (data && typeof data === 'object') {
+              context.log.info(`Successfully fetched structure data`, { cid, roof_date: data.roof_date });
+              return { roof_date: data.roof_date };
+            }
+          } else {
+            context.log.warn(`Structure data fetch failed - HTTP error`, {
+              cid,
+              endpoint: endpoint.url,
+              status: response.status,
+              statusText: response.statusText
+            });
           }
-        } else {
-          context.log.warn(`Structure data fetch failed - HTTP error`, {
+        } catch (e) {
+          const error = e as Error;
+          context.log.warn(`Failed to fetch structure data`, {
             cid,
-            endpoint,
-            status: response.status,
-            statusText: response.statusText
+            endpoint: endpoint.url,
+            error: error.message,
+            errorName: error.name,
+            errorStack: error.stack,
+            errorCause: error.cause
           });
         }
-      } catch (e) {
-        const error = e as Error;
-        context.log.warn(`Failed to fetch structure data`, {
-          cid,
-          endpoint,
-          error: error.message,
-          errorName: error.name,
-          errorStack: error.stack,
-          errorCause: error.cause
-        });
+
+        // Delay between endpoints
+        if (i < endpoints.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_CONFIG.delayBetweenEndpoints));
+        }
       }
 
-      // Delay between endpoints
-      if (i < endpoints.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_CONFIG.delayBetweenEndpoints));
-      }
+      throw new Error(`Failed to fetch structure data for CID: ${cid}`);
     }
-
-    throw new Error(`Failed to fetch structure data for CID: ${cid}`);
-  }
 );
 
 // Fetch address data
 export const getAddressData = experimental_createEffect(
-  {
-    name: "getAddressData",
-    input: S.string,
-    output: addressSchema,
-    cache: true,
-  },
-  async ({ input: cid, context }) => {
-    for (let i = 0; i < endpoints.length; i++) {
-      const endpoint = endpoints[i];
+    {
+      name: "getAddressData",
+      input: S.string,
+      output: addressSchema,
+      cache: true,
+    },
+    async ({ input: cid, context }) => {
+      for (let i = 0; i < endpoints.length; i++) {
+        const endpoint = endpoints[i];
 
-      try {
-        context.log.info(`Fetching address data from gateway`, { cid, endpoint });
+        try {
+          const fullUrl = buildGatewayUrl(endpoint.url, cid, endpoint.token);
+          context.log.info(`Fetching address data from gateway`, { cid, endpoint: endpoint.url });
 
-        const response = await fetch(`${endpoint}/${cid}`);
-        if (response.ok) {
-          const data: any = await response.json();
-          if (data && typeof data === 'object') {
-            context.log.info(`Successfully fetched address data`, {
+          const response = await fetch(fullUrl);
+          if (response.ok) {
+            const data: any = await response.json();
+            if (data && typeof data === 'object') {
+              context.log.info(`Successfully fetched address data`, {
+                cid,
+                full_address: data.full_address,
+                county_jurisdiction: data.county_jurisdiction
+              });
+
+              return {
+                county_jurisdiction: data.county_jurisdiction || undefined,
+                full_address: data.full_address || undefined,
+                request_identifier: data.request_identifier || undefined
+              };
+            }
+          } else {
+            context.log.warn(`Address data fetch failed - HTTP error`, {
               cid,
-              full_address: data.full_address,
-              county_jurisdiction: data.county_jurisdiction
+              endpoint: endpoint.url,
+              status: response.status,
+              statusText: response.statusText
             });
-
-            return {
-              county_jurisdiction: data.county_jurisdiction || undefined,
-              full_address: data.full_address || undefined,
-              request_identifier: data.request_identifier || undefined
-            };
           }
-        } else {
-          context.log.warn(`Address data fetch failed - HTTP error`, {
+        } catch (e) {
+          const error = e as Error;
+          context.log.warn(`Failed to fetch address data`, {
             cid,
-            endpoint,
-            status: response.status,
-            statusText: response.statusText
+            endpoint: endpoint.url,
+            error: error.message,
+            errorName: error.name,
+            errorStack: error.stack,
+            errorCause: error.cause
           });
         }
-      } catch (e) {
-        const error = e as Error;
-        context.log.warn(`Failed to fetch address data`, {
-          cid,
-          endpoint,
-          error: error.message,
-          errorName: error.name,
-          errorStack: error.stack,
-          errorCause: error.cause
-        });
+
+        // Delay between endpoints
+        if (i < endpoints.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_CONFIG.delayBetweenEndpoints));
+        }
       }
 
-      // Delay between endpoints
-      if (i < endpoints.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_CONFIG.delayBetweenEndpoints));
-      }
+      throw new Error(`Failed to fetch address data for CID: ${cid}`);
     }
-
-    throw new Error(`Failed to fetch address data for CID: ${cid}`);
-  }
 );
 
 // Fetch property data (property_type, built years)
@@ -348,9 +361,10 @@ export const getPropertyData = experimental_createEffect(
         const endpoint = endpoints[i];
 
         try {
-          context.log.info(`Fetching property data from gateway`, { cid, endpoint });
+          const fullUrl = buildGatewayUrl(endpoint.url, cid, endpoint.token);
+          context.log.info(`Fetching property data from gateway`, { cid, endpoint: endpoint.url });
 
-          const response = await fetch(`${endpoint}/${cid}`);
+          const response = await fetch(fullUrl);
           if (response.ok) {
             const data: any = await response.json();
             if (data && typeof data === 'object') {
@@ -363,14 +377,14 @@ export const getPropertyData = experimental_createEffect(
 
               return {
                 property_type: data.property_type || undefined,
-                property_structure_built_year: data.property_structure_built_year || undefined,
-                property_effective_built_year: data.property_effective_built_year || undefined
+                property_structure_built_year: data.property_structure_built_year ? String(data.property_structure_built_year) : undefined,
+                property_effective_built_year: data.property_effective_built_year ? String(data.property_effective_built_year) : undefined
               };
             }
           } else {
             context.log.warn(`Property data fetch failed - HTTP error`, {
               cid,
-              endpoint,
+              endpoint: endpoint.url,
               status: response.status,
               statusText: response.statusText
             });
@@ -379,7 +393,7 @@ export const getPropertyData = experimental_createEffect(
           const error = e as Error;
           context.log.warn(`Failed to fetch property data`, {
             cid,
-            endpoint,
+            endpoint: endpoint.url,
             error: error.message,
             errorName: error.name,
             errorStack: error.stack,
@@ -399,47 +413,47 @@ export const getPropertyData = experimental_createEffect(
 
 // Rate limiting configuration
 const RATE_LIMIT_CONFIG = {
-  delayBetweenEndpoints: 3000, // 3 seconds between trying different gateways
+  delayBetweenEndpoints: 2000, // 2 seconds between trying different gateways
   delayOn429: 10000, // 10 seconds when rate limited
-  delayOnError: 5000, // 10 seconds on other errors
+  delayOnError: 10000, // 10 seconds on other errors
   maxRetries: 1, // Max retries per endpoint (reduced to avoid too many failures)
 };
 
 export const getIpfsMetadata = experimental_createEffect(
-  {
-    name: "getIpfsMetadata",
-    input: S.string,
-    output: ipfsMetadataSchema,
-    cache: true, // Enable caching for better performance
-  },
-  async ({ input: cid, context }) => {
-    for (let i = 0; i < endpoints.length; i++) {
-      const endpoint = endpoints[i];
+    {
+      name: "getIpfsMetadata",
+      input: S.string,
+      output: ipfsMetadataSchema,
+      cache: true, // Enable caching for better performance
+    },
+    async ({ input: cid, context }) => {
+      for (let i = 0; i < endpoints.length; i++) {
+        const endpoint = endpoints[i];
 
-      // Try each endpoint with retries
-      for (let retry = 0; retry < RATE_LIMIT_CONFIG.maxRetries; retry++) {
-        const metadata = await fetchFromEndpoint(context, endpoint, cid);
-        if (metadata) {
-          return metadata;
+        // Try each endpoint with retries
+        for (let retry = 0; retry < RATE_LIMIT_CONFIG.maxRetries; retry++) {
+          const metadata = await fetchFromEndpoint(context, endpoint, cid);
+          if (metadata) {
+            return metadata;
+          }
+
+          // Delay before retry (except on last retry of last endpoint)
+          if (retry < RATE_LIMIT_CONFIG.maxRetries - 1) {
+            const delay = RATE_LIMIT_CONFIG.delayOnError;
+            context.log.info(`Retrying endpoint in ${delay}ms`, { endpoint, retry: retry + 1 });
+            await new Promise(resolve => setTimeout(resolve, delay));
+          }
         }
 
-        // Delay before retry (except on last retry of last endpoint)
-        if (retry < RATE_LIMIT_CONFIG.maxRetries - 1) {
-          const delay = RATE_LIMIT_CONFIG.delayOnError;
-          context.log.info(`Retrying endpoint in ${delay}ms`, { endpoint, retry: retry + 1 });
-          await new Promise(resolve => setTimeout(resolve, delay));
+        // Delay between endpoints (except for last endpoint)
+        if (i < endpoints.length - 1) {
+          context.log.info(`Trying next endpoint in ${RATE_LIMIT_CONFIG.delayBetweenEndpoints}ms`);
+          await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_CONFIG.delayBetweenEndpoints));
         }
       }
 
-      // Delay between endpoints (except for last endpoint)
-      if (i < endpoints.length - 1) {
-        context.log.info(`Trying next endpoint in ${RATE_LIMIT_CONFIG.delayBetweenEndpoints}ms`);
-        await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_CONFIG.delayBetweenEndpoints));
-      }
+      // All endpoints failed - throw error to prevent corrupted data
+      context.log.error("Unable to fetch IPFS metadata from all gateways", { cid });
+      throw new Error(`Failed to fetch IPFS content for CID: ${cid}`);
     }
-
-    // All endpoints failed - throw error to prevent corrupted data
-    context.log.error("Unable to fetch IPFS metadata from all gateways", { cid });
-    throw new Error(`Failed to fetch IPFS content for CID: ${cid}`);
-  }
 );
