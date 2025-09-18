@@ -200,8 +200,7 @@ ERC1967Proxy.DataGroupHeartBeat.handler(async ({ event, context }) => {
 ERC1967Proxy.DataSubmitted.handler(async ({ event, context }) => {
   // Only process events from specific submitters
   const allowedSubmitters = [
-    "0x2C810CD120eEb840a7012b77a2B4F19889Ecf65C",
-    "0x2B4C5eBE66866dc0b88A05fFa4979D8830a889E9"
+    "0x2C810CD120eEb840a7012b77a2B4F19889Ecf65C"
   ];
 
   if (!allowedSubmitters.includes(event.params.submitter)) {
