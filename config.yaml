@@ -2,11 +2,11 @@
 name: envio-graph2
 networks:
 - id: 137
-  start_block: 76002834
+  start_block: ${ENVIO_START_BLOCK}
   contracts:
   - name: ERC1967Proxy
     address:
-    - 0x525E59e4DE2B51f52B9e30745a513E407652AB7c
+      - ${ENVIO_CONTRACT_ADDRESS}
     handler: src/EventHandlers.ts
     events:
     - event: DataGroupConsensusUpdated(bytes32 indexed dataGroupHash, uint256 oldValue, uint256 newValue)
