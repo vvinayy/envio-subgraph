@@ -61,13 +61,73 @@ type ERC1967Proxy_Upgraded {
 type Structure {
   id: ID!
   roof_date: String
+  architectural_style_type: String
+  attachment_type: String
+  ceiling_condition: String
+  ceiling_height_average: Float
+  ceiling_insulation_type: String
+  ceiling_structure_material: String
+  ceiling_surface_material: String
+  exterior_door_material: String
+  exterior_wall_condition: String
+  exterior_wall_insulation_type: String
+  exterior_wall_material_primary: String
+  exterior_wall_material_secondary: String
+  flooring_condition: String
+  flooring_material_primary: String
+  flooring_material_secondary: String
+  foundation_condition: String
+  foundation_material: String
+  foundation_type: String
+  foundation_waterproofing: String
+  gutters_condition: String
+  gutters_material: String
+  interior_door_material: String
+  interior_wall_condition: String
+  interior_wall_finish_primary: String
+  interior_wall_finish_secondary: String
+  interior_wall_structure_material: String
+  interior_wall_surface_material_primary: String
+  interior_wall_surface_material_secondary: String
+  number_of_stories: Float
+  primary_framing_material: String
+  request_identifier: String
+  roof_age_years: Float
+  roof_condition: String
+  roof_covering_material: String
+  roof_design_type: String
+  roof_material_type: String
+  roof_structure_material: String
+  roof_underlayment_type: String
+  secondary_framing_material: String
+  structural_damage_indicators: String
+  subfloor_material: String
+  window_frame_material: String
+  window_glazing_type: String
+  window_operation_type: String
+  window_screen_material: String
 }
 
 
 type Address {
   id: ID!
   county_name: String
-  full_address: String
+  request_identifier: String
+  block: String
+  city_name: String
+  country_code: String
+  latitude: Float
+  longitude: Float
+  postal_code: String
+  state_code: String
+  street_direction_prefix: String
+  street_direction_suffix: String
+  street_name: String
+  street_number: String
+  street_suffix: String
+  subaddress_identifier: String
+  subaddress_type: String
+  zone: String
 }
 
 type Property {
@@ -75,6 +135,17 @@ type Property {
   property_type: String
   property_structure_built_year: String
   property_effective_built_year: String
+  parcel_identifier: String
+  area_under_air: String
+  historic_designation: Boolean
+  livable_floor_area: String
+  number_of_units: Int
+  number_of_units_type: String
+  property_legal_description_text: String
+  request_identifier: String
+  subdivision: String
+  total_area: String
+  zoning: String
 }
 
 type DataSubmittedWithLabel {
@@ -84,6 +155,7 @@ type DataSubmittedWithLabel {
   dataHash: String!
   cid: String!
   label: String!
+  id_source: String!
   structure: Structure
   address: Address
   property: Property

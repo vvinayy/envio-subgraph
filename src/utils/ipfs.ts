@@ -67,16 +67,80 @@ const ipfsMetadataSchema = S.schema({
   }))
 });
 
-// Schema for structure data (roof date response)
+// Schema for structure data (expanded for complete structure info)
 const structureSchema = S.schema({
-  roof_date: S.optional(S.string)
+  // Original field
+  roof_date: S.optional(S.string),
+  // Expanded structure fields from JSON schema
+  architectural_style_type: S.optional(S.string),
+  attachment_type: S.optional(S.string),
+  ceiling_condition: S.optional(S.string),
+  ceiling_height_average: S.optional(S.number),
+  ceiling_insulation_type: S.optional(S.string),
+  ceiling_structure_material: S.optional(S.string),
+  ceiling_surface_material: S.optional(S.string),
+  exterior_door_material: S.optional(S.string),
+  exterior_wall_condition: S.optional(S.string),
+  exterior_wall_insulation_type: S.optional(S.string),
+  exterior_wall_material_primary: S.optional(S.string),
+  exterior_wall_material_secondary: S.optional(S.string),
+  flooring_condition: S.optional(S.string),
+  flooring_material_primary: S.optional(S.string),
+  flooring_material_secondary: S.optional(S.string),
+  foundation_condition: S.optional(S.string),
+  foundation_material: S.optional(S.string),
+  foundation_type: S.optional(S.string),
+  foundation_waterproofing: S.optional(S.string),
+  gutters_condition: S.optional(S.string),
+  gutters_material: S.optional(S.string),
+  interior_door_material: S.optional(S.string),
+  interior_wall_condition: S.optional(S.string),
+  interior_wall_finish_primary: S.optional(S.string),
+  interior_wall_finish_secondary: S.optional(S.string),
+  interior_wall_structure_material: S.optional(S.string),
+  interior_wall_surface_material_primary: S.optional(S.string),
+  interior_wall_surface_material_secondary: S.optional(S.string),
+  number_of_stories: S.optional(S.number),
+  primary_framing_material: S.optional(S.string),
+  request_identifier: S.optional(S.string),
+  roof_age_years: S.optional(S.number),
+  roof_condition: S.optional(S.string),
+  roof_covering_material: S.optional(S.string),
+  roof_design_type: S.optional(S.string),
+  roof_material_type: S.optional(S.string),
+  roof_structure_material: S.optional(S.string),
+  roof_underlayment_type: S.optional(S.string),
+  secondary_framing_material: S.optional(S.string),
+  structural_damage_indicators: S.optional(S.string),
+  subfloor_material: S.optional(S.string),
+  window_frame_material: S.optional(S.string),
+  window_glazing_type: S.optional(S.string),
+  window_operation_type: S.optional(S.string),
+  window_screen_material: S.optional(S.string),
 });
 
-// Schema for address data (simplified for Seed processing)
+// Schema for address data (County processing only)
 const addressSchema = S.schema({
-  county_jurisdiction: S.optional(S.string),
-  full_address: S.optional(S.string),
   request_identifier: S.optional(S.string),
+  block: S.optional(S.string),
+  city_name: S.optional(S.string),
+  country_code: S.optional(S.string),
+  county_name: S.optional(S.string),
+  latitude: S.optional(S.number),
+  longitude: S.optional(S.number),
+  plus_four_postal_code: S.optional(S.string),
+  postal_code: S.optional(S.string),
+  range: S.optional(S.string),
+  route_number: S.optional(S.string),
+  section: S.optional(S.string),
+  state_code: S.optional(S.string),
+  street_name: S.optional(S.string),
+  street_number: S.optional(S.string),
+  street_post_directional_text: S.optional(S.string),
+  street_pre_directional_text: S.optional(S.string),
+  street_suffix_type: S.optional(S.string),
+  township: S.optional(S.string),
+  unit_identifier: S.optional(S.string),
 });
 
 // Schema for property data (for County processing)
@@ -84,6 +148,17 @@ const propertySchema = S.schema({
   property_type: S.optional(S.string),
   property_structure_built_year: S.optional(S.string),
   property_effective_built_year: S.optional(S.string),
+  parcel_identifier: S.optional(S.string),
+  area_under_air: S.optional(S.string),
+  historic_designation: S.optional(S.boolean),
+  livable_floor_area: S.optional(S.string),
+  number_of_units: S.optional(S.number),
+  number_of_units_type: S.optional(S.string),
+  property_legal_description_text: S.optional(S.string),
+  request_identifier: S.optional(S.string),
+  subdivision: S.optional(S.string),
+  total_area: S.optional(S.string),
+  zoning: S.optional(S.string),
 });
 
 // Schema for relationship data (from/to structure)
@@ -254,7 +329,56 @@ export const getStructureData = experimental_createEffect(
             const data: any = await response.json();
             if (data && typeof data === 'object') {
               context.log.info(`Successfully fetched structure data`, { cid, roof_date: data.roof_date });
-              return { roof_date: data.roof_date };
+              return {
+                // Original field
+                roof_date: data.roof_date || undefined,
+                // Expanded structure fields (handling null values)
+                architectural_style_type: data.architectural_style_type || undefined,
+                attachment_type: data.attachment_type || undefined,
+                ceiling_condition: data.ceiling_condition || undefined,
+                ceiling_height_average: data.ceiling_height_average || undefined,
+                ceiling_insulation_type: data.ceiling_insulation_type || undefined,
+                ceiling_structure_material: data.ceiling_structure_material || undefined,
+                ceiling_surface_material: data.ceiling_surface_material || undefined,
+                exterior_door_material: data.exterior_door_material || undefined,
+                exterior_wall_condition: data.exterior_wall_condition || undefined,
+                exterior_wall_insulation_type: data.exterior_wall_insulation_type || undefined,
+                exterior_wall_material_primary: data.exterior_wall_material_primary || undefined,
+                exterior_wall_material_secondary: data.exterior_wall_material_secondary || undefined,
+                flooring_condition: data.flooring_condition || undefined,
+                flooring_material_primary: data.flooring_material_primary || undefined,
+                flooring_material_secondary: data.flooring_material_secondary || undefined,
+                foundation_condition: data.foundation_condition || undefined,
+                foundation_material: data.foundation_material || undefined,
+                foundation_type: data.foundation_type || undefined,
+                foundation_waterproofing: data.foundation_waterproofing || undefined,
+                gutters_condition: data.gutters_condition || undefined,
+                gutters_material: data.gutters_material || undefined,
+                interior_door_material: data.interior_door_material || undefined,
+                interior_wall_condition: data.interior_wall_condition || undefined,
+                interior_wall_finish_primary: data.interior_wall_finish_primary || undefined,
+                interior_wall_finish_secondary: data.interior_wall_finish_secondary || undefined,
+                interior_wall_structure_material: data.interior_wall_structure_material || undefined,
+                interior_wall_surface_material_primary: data.interior_wall_surface_material_primary || undefined,
+                interior_wall_surface_material_secondary: data.interior_wall_surface_material_secondary || undefined,
+                number_of_stories: data.number_of_stories || undefined,
+                primary_framing_material: data.primary_framing_material || undefined,
+                request_identifier: data.request_identifier || undefined,
+                roof_age_years: data.roof_age_years || undefined,
+                roof_condition: data.roof_condition || undefined,
+                roof_covering_material: data.roof_covering_material || undefined,
+                roof_design_type: data.roof_design_type || undefined,
+                roof_material_type: data.roof_material_type || undefined,
+                roof_structure_material: data.roof_structure_material || undefined,
+                roof_underlayment_type: data.roof_underlayment_type || undefined,
+                secondary_framing_material: data.secondary_framing_material || undefined,
+                structural_damage_indicators: data.structural_damage_indicators || undefined,
+                subfloor_material: data.subfloor_material || undefined,
+                window_frame_material: data.window_frame_material || undefined,
+                window_glazing_type: data.window_glazing_type || undefined,
+                window_operation_type: data.window_operation_type || undefined,
+                window_screen_material: data.window_screen_material || undefined,
+              };
             }
           } else {
             context.log.warn(`Structure data fetch failed - HTTP error`, {
@@ -308,14 +432,30 @@ export const getAddressData = experimental_createEffect(
             if (data && typeof data === 'object') {
               context.log.info(`Successfully fetched address data`, {
                 cid,
-                full_address: data.full_address,
-                county_jurisdiction: data.county_jurisdiction
+                county_name: data.county_name
               });
 
               return {
-                county_jurisdiction: data.county_jurisdiction || undefined,
-                full_address: data.full_address || undefined,
-                request_identifier: data.request_identifier || undefined
+                request_identifier: data.request_identifier || undefined,
+                block: data.block || undefined,
+                city_name: data.city_name || undefined,
+                country_code: data.country_code || undefined,
+                county_name: data.county_name || undefined,
+                latitude: data.latitude || undefined,
+                longitude: data.longitude || undefined,
+                plus_four_postal_code: data.plus_four_postal_code || undefined,
+                postal_code: data.postal_code || undefined,
+                range: data.range || undefined,
+                route_number: data.route_number || undefined,
+                section: data.section || undefined,
+                state_code: data.state_code || undefined,
+                street_name: data.street_name || undefined,
+                street_number: data.street_number || undefined,
+                street_post_directional_text: data.street_post_directional_text || undefined,
+                street_pre_directional_text: data.street_pre_directional_text || undefined,
+                street_suffix_type: data.street_suffix_type || undefined,
+                township: data.township || undefined,
+                unit_identifier: data.unit_identifier || undefined,
               };
             }
           } else {
@@ -378,7 +518,18 @@ export const getPropertyData = experimental_createEffect(
               return {
                 property_type: data.property_type || undefined,
                 property_structure_built_year: data.property_structure_built_year ? String(data.property_structure_built_year) : undefined,
-                property_effective_built_year: data.property_effective_built_year ? String(data.property_effective_built_year) : undefined
+                property_effective_built_year: data.property_effective_built_year ? String(data.property_effective_built_year) : undefined,
+                parcel_identifier: data.parcel_identifier || undefined,
+                area_under_air: data.area_under_air || undefined,
+                historic_designation: data.historic_designation || undefined,
+                livable_floor_area: data.livable_floor_area || undefined,
+                number_of_units: data.number_of_units || undefined,
+                number_of_units_type: data.number_of_units_type || undefined,
+                property_legal_description_text: data.property_legal_description_text || undefined,
+                request_identifier: data.request_identifier || undefined,
+                subdivision: data.subdivision || undefined,
+                total_area: data.total_area || undefined,
+                zoning: data.zoning || undefined,
               };
             }
           } else {

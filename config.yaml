@@ -2,7 +2,7 @@
 name: envio-graph2
 networks:
 - id: 137
-  start_block: 76355000
+  start_block: 76002834
   contracts:
   - name: ERC1967Proxy
     address:
