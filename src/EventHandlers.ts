@@ -16,9 +16,10 @@ import {
   Structure,
   Address,
   Property,
+  Ipfs,
 } from "generated";
 
-import { bytes32ToCID, getIpfsMetadata, getRelationshipData, getStructureData, getAddressData, getPropertyData } from "./utils/ipfs";
+import { bytes32ToCID, getIpfsMetadata, getRelationshipData, getStructureData, getAddressData, getPropertyData, getIpfsFactSheetData } from "./utils/ipfs";
 
 ERC1967Proxy.DataGroupConsensusUpdated.handler(async ({ event, context }) => {
   const entity: ERC1967Proxy_DataGroupConsensusUpdated = {
@@ -70,6 +71,7 @@ ERC1967Proxy.DataGroupHeartBeat.handler(async ({ event, context }) => {
     let structureId: string | undefined;
     let addressId: string | undefined;
     let propertyDataId: string | undefined;
+    let ipfsId: string | undefined;
 
     if (metadata.label === "County") {
       // Process structure data if available
@@ -204,6 +206,99 @@ ERC1967Proxy.DataGroupHeartBeat.handler(async ({ event, context }) => {
         }
       }
 
+      // Process address data using address_has_fact_sheet relationship
+      const addressFactSheetCid = metadata.relationships?.address_has_fact_sheet?.[0]?.["/"];
+      if (addressFactSheetCid) {
+        try {
+          const relationshipData = await context.effect(getRelationshipData, addressFactSheetCid);
+
+          // Fetch address data from "from" part
+          if (relationshipData.from && relationshipData.from["/"]) {
+            try {
+              const addressDataCid = relationshipData.from["/"];
+              const addressData = await context.effect(getAddressData, addressDataCid);
+
+              addressId = addressDataCid; // Use the CID as the address ID
+              const addressEntity: Address = {
+                id: addressId,
+                county_name: addressData.county_name || undefined,
+                request_identifier: addressData.request_identifier || undefined,
+                block: addressData.block || undefined,
+                city_name: addressData.city_name || undefined,
+                country_code: addressData.country_code || undefined,
+                latitude: addressData.latitude || undefined,
+                longitude: addressData.longitude || undefined,
+                lot: addressData.lot || undefined,
+                municipality_name: addressData.municipality_name || undefined,
+                plus_four_postal_code: addressData.plus_four_postal_code || undefined,
+                postal_code: addressData.postal_code || undefined,
+                range: addressData.range || undefined,
+                route_number: addressData.route_number || undefined,
+                section: addressData.section || undefined,
+                state_code: addressData.state_code || undefined,
+                street_direction_prefix: addressData.street_pre_directional_text || undefined,
+                street_direction_suffix: addressData.street_post_directional_text || undefined,
+                street_name: addressData.street_name || undefined,
+                street_number: addressData.street_number || undefined,
+                street_suffix: addressData.street_suffix_type || undefined,
+                unit_identifier: addressData.unit_identifier || undefined,
+                township: addressData.township || undefined
+              };
+              context.Address.set(addressEntity);
+
+              context.log.info(`Updated Address entity from HeartBeat`, {
+                addressId,
+                county_name: addressData.county_name,
+                city_name: addressData.city_name,
+                street_name: addressData.street_name,
+                street_number: addressData.street_number
+              });
+            } catch (addressError) {
+              context.log.warn(`Failed to fetch ADDRESS data from HeartBeat`, {
+                cid,
+                addressFactSheetCid,
+                addressDataCid: relationshipData.from?.["/"] || "missing",
+                error: (addressError as Error).message
+              });
+            }
+          }
+
+          // Fetch IPFS data from "to" part (fact sheet data)
+          if (relationshipData.to && relationshipData.to["/"]) {
+            try {
+              const ipfsDataCid = relationshipData.to["/"];
+              const ipfsData = await context.effect(getIpfsFactSheetData, ipfsDataCid);
+
+              ipfsId = ipfsDataCid; // Use the CID as the IPFS ID
+              const ipfsEntity: Ipfs = {
+                id: ipfsId,
+                ipfs_url: ipfsData.ipfs_url || "",
+                full_generation_command: ipfsData.full_generation_command || undefined
+              };
+              context.Ipfs.set(ipfsEntity);
+
+              context.log.info(`Updated IPFS entity from HeartBeat`, {
+                ipfsId: ipfsDataCid,
+                ipfs_url: ipfsData.ipfs_url
+              });
+            } catch (ipfsError) {
+              context.log.warn(`Failed to fetch IPFS fact sheet data from HeartBeat`, {
+                cid,
+                addressFactSheetCid,
+                ipfsDataCid: relationshipData.to?.["/"] || "missing",
+                error: (ipfsError as Error).message
+              });
+            }
+          }
+        } catch (relationshipError) {
+          context.log.warn(`Failed to fetch relationship data for address fact sheet`, {
+            cid,
+            addressFactSheetCid,
+            error: (relationshipError as Error).message
+          });
+        }
+      }
+
       context.log.info(`Updated County property from HeartBeat`, {
         propertyId,
         label: metadata.label,
@@ -242,7 +337,8 @@ ERC1967Proxy.DataGroupHeartBeat.handler(async ({ event, context }) => {
       id_source: idSource,
       structure_id: structureId,
       address_id: addressId,
-      property_id: propertyDataId
+      property_id: propertyDataId,
+      ipfs_id: ipfsId
     };
 
     context.DataSubmittedWithLabel.set(labelEntity);
@@ -302,6 +398,7 @@ ERC1967Proxy.DataSubmitted.handler(async ({ event, context }) => {
     let structureId: string | undefined;
     let addressId: string | undefined;
     let propertyDataId: string | undefined;
+    let ipfsId: string | undefined;
 
     if (metadata.label === "County") {
       // Process structure data if available
@@ -436,6 +533,99 @@ ERC1967Proxy.DataSubmitted.handler(async ({ event, context }) => {
         }
       }
 
+      // Process address data using address_has_fact_sheet relationship
+      const addressFactSheetCid = metadata.relationships?.address_has_fact_sheet?.[0]?.["/"];
+      if (addressFactSheetCid) {
+        try {
+          const relationshipData = await context.effect(getRelationshipData, addressFactSheetCid);
+
+          // Fetch address data from "from" part
+          if (relationshipData.from && relationshipData.from["/"]) {
+            try {
+              const addressDataCid = relationshipData.from["/"];
+              const addressData = await context.effect(getAddressData, addressDataCid);
+
+              addressId = addressDataCid; // Use the CID as the address ID
+              const addressEntity: Address = {
+                id: addressId,
+                county_name: addressData.county_name || undefined,
+                request_identifier: addressData.request_identifier || undefined,
+                block: addressData.block || undefined,
+                city_name: addressData.city_name || undefined,
+                country_code: addressData.country_code || undefined,
+                latitude: addressData.latitude || undefined,
+                longitude: addressData.longitude || undefined,
+                lot: addressData.lot || undefined,
+                municipality_name: addressData.municipality_name || undefined,
+                plus_four_postal_code: addressData.plus_four_postal_code || undefined,
+                postal_code: addressData.postal_code || undefined,
+                range: addressData.range || undefined,
+                route_number: addressData.route_number || undefined,
+                section: addressData.section || undefined,
+                state_code: addressData.state_code || undefined,
+                street_direction_prefix: addressData.street_pre_directional_text || undefined,
+                street_direction_suffix: addressData.street_post_directional_text || undefined,
+                street_name: addressData.street_name || undefined,
+                street_number: addressData.street_number || undefined,
+                street_suffix: addressData.street_suffix_type || undefined,
+                unit_identifier: addressData.unit_identifier || undefined,
+                township: addressData.township || undefined
+              };
+              context.Address.set(addressEntity);
+
+              context.log.info(`Updated Address entity`, {
+                addressId,
+                county_name: addressData.county_name,
+                city_name: addressData.city_name,
+                street_name: addressData.street_name,
+                street_number: addressData.street_number
+              });
+            } catch (addressError) {
+              context.log.warn(`Failed to fetch ADDRESS data`, {
+                cid,
+                addressFactSheetCid,
+                addressDataCid: relationshipData.from?.["/"] || "missing",
+                error: (addressError as Error).message
+              });
+            }
+          }
+
+          // Fetch IPFS data from "to" part (fact sheet data)
+          if (relationshipData.to && relationshipData.to["/"]) {
+            try {
+              const ipfsDataCid = relationshipData.to["/"];
+              const ipfsData = await context.effect(getIpfsFactSheetData, ipfsDataCid);
+
+              ipfsId = ipfsDataCid; // Use the CID as the IPFS ID
+              const ipfsEntity: Ipfs = {
+                id: ipfsId,
+                ipfs_url: ipfsData.ipfs_url || "",
+                full_generation_command: ipfsData.full_generation_command || undefined
+              };
+              context.Ipfs.set(ipfsEntity);
+
+              context.log.info(`Updated IPFS entity`, {
+                ipfsId: ipfsDataCid,
+                ipfs_url: ipfsData.ipfs_url
+              });
+            } catch (ipfsError) {
+              context.log.warn(`Failed to fetch IPFS fact sheet data`, {
+                cid,
+                addressFactSheetCid,
+                ipfsDataCid: relationshipData.to?.["/"] || "missing",
+                error: (ipfsError as Error).message
+              });
+            }
+          }
+        } catch (relationshipError) {
+          context.log.warn(`Failed to fetch relationship data for address fact sheet`, {
+            cid,
+            addressFactSheetCid,
+            error: (relationshipError as Error).message
+          });
+        }
+      }
+
       context.log.info(`Updated County property with structure data`, {
         propertyId,
         label: metadata.label,
@@ -474,7 +664,8 @@ ERC1967Proxy.DataSubmitted.handler(async ({ event, context }) => {
       id_source: idSource,
       structure_id: structureId,
       address_id: addressId,
-      property_id: propertyDataId
+      property_id: propertyDataId,
+      ipfs_id: ipfsId
     };
 
     context.DataSubmittedWithLabel.set(labelEntity);

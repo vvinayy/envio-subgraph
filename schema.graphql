@@ -118,16 +118,21 @@ type Address {
   country_code: String
   latitude: Float
   longitude: Float
+  lot: String
+  municipality_name: String
+  plus_four_postal_code: String
   postal_code: String
+  range: String
+  route_number: String
+  section: String
   state_code: String
   street_direction_prefix: String
   street_direction_suffix: String
   street_name: String
   street_number: String
   street_suffix: String
-  subaddress_identifier: String
-  subaddress_type: String
-  zone: String
+  unit_identifier: String
+  township: String
 }
 
 type Property {
@@ -148,6 +153,12 @@ type Property {
   zoning: String
 }
 
+type Ipfs {
+  id: ID!
+  ipfs_url: String!
+  full_generation_command: String
+}
+
 type DataSubmittedWithLabel {
   id: ID!
   propertyHash: String!
@@ -159,4 +170,5 @@ type DataSubmittedWithLabel {
   structure: Structure
   address: Address
   property: Property
+  ipfs: Ipfs
 }

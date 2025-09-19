@@ -63,7 +63,10 @@ const ipfsMetadataSchema = S.schema({
     })),
     property_seed: S.optional(S.schema({
       "/": S.string
-    }))
+    })),
+    address_has_fact_sheet: S.optional(S.array(S.schema({
+      "/": S.string
+    })))
   }))
 });
 
@@ -119,7 +122,7 @@ const structureSchema = S.schema({
   window_screen_material: S.optional(S.string),
 });
 
-// Schema for address data (County processing only)
+// Schema for address data (using exact JSON schema field names)
 const addressSchema = S.schema({
   request_identifier: S.optional(S.string),
   block: S.optional(S.string),
@@ -128,6 +131,8 @@ const addressSchema = S.schema({
   county_name: S.optional(S.string),
   latitude: S.optional(S.number),
   longitude: S.optional(S.number),
+  lot: S.optional(S.string),
+  municipality_name: S.optional(S.string),
   plus_four_postal_code: S.optional(S.string),
   postal_code: S.optional(S.string),
   range: S.optional(S.string),
@@ -161,6 +166,12 @@ const propertySchema = S.schema({
   zoning: S.optional(S.string),
 });
 
+// Schema for fact sheet IPFS data (contains ipfs_url and full_generation_command)
+const ipfsFactSheetSchema = S.schema({
+  ipfs_url: S.optional(S.string),
+  full_generation_command: S.optional(S.string),
+});
+
 // Schema for relationship data (from/to structure)
 const relationshipSchema = S.schema({
   from: S.optional(S.schema({
@@ -177,6 +188,7 @@ type StructureData = S.Infer<typeof structureSchema>;
 type AddressData = S.Infer<typeof addressSchema>;
 type PropertyData = S.Infer<typeof propertySchema>;
 type RelationshipData = S.Infer<typeof relationshipSchema>;
+type IpfsFactSheetData = S.Infer<typeof ipfsFactSheetSchema>;
 
 // Gateway configuration with optional authentication tokens
 const endpoints = [
@@ -443,6 +455,8 @@ export const getAddressData = experimental_createEffect(
                 county_name: data.county_name || undefined,
                 latitude: data.latitude || undefined,
                 longitude: data.longitude || undefined,
+                lot: data.lot || undefined,
+                municipality_name: data.municipality_name || undefined,
                 plus_four_postal_code: data.plus_four_postal_code || undefined,
                 postal_code: data.postal_code || undefined,
                 range: data.range || undefined,
@@ -569,6 +583,66 @@ const RATE_LIMIT_CONFIG = {
   delayOnError: 10000, // 10 seconds on other errors
   maxRetries: 1, // Max retries per endpoint (reduced to avoid too many failures)
 };
+
+// Fetch fact sheet data (ipfs_url and full_generation_command)
+export const getIpfsFactSheetData = experimental_createEffect(
+    {
+      name: "getIpfsFactSheetData",
+      input: S.string,
+      output: ipfsFactSheetSchema,
+      cache: true,
+    },
+    async ({ input: cid, context }) => {
+      for (let i = 0; i < endpoints.length; i++) {
+        const endpoint = endpoints[i];
+
+        try {
+          const fullUrl = buildGatewayUrl(endpoint.url, cid, endpoint.token);
+          context.log.info(`Fetching fact sheet data from gateway`, { cid, endpoint: endpoint.url });
+
+          const response = await fetch(fullUrl);
+          if (response.ok) {
+            const data: any = await response.json();
+            if (data && typeof data === 'object') {
+              context.log.info(`Successfully fetched fact sheet data`, {
+                cid,
+                ipfs_url: data.ipfs_url
+              });
+
+              return {
+                ipfs_url: data.ipfs_url || undefined,
+                full_generation_command: data.full_generation_command || undefined,
+              };
+            }
+          } else {
+            context.log.warn(`Fact sheet data fetch failed - HTTP error`, {
+              cid,
+              endpoint: endpoint.url,
+              status: response.status,
+              statusText: response.statusText
+            });
+          }
+        } catch (e) {
+          const error = e as Error;
+          context.log.warn(`Failed to fetch fact sheet data`, {
+            cid,
+            endpoint: endpoint.url,
+            error: error.message,
+            errorName: error.name,
+            errorStack: error.stack,
+            errorCause: error.cause
+          });
+        }
+
+        // Delay between endpoints
+        if (i < endpoints.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_CONFIG.delayBetweenEndpoints));
+        }
+      }
+
+      throw new Error(`Failed to fetch fact sheet data for CID: ${cid}`);
+    }
+);
 
 export const getIpfsMetadata = experimental_createEffect(
     {
