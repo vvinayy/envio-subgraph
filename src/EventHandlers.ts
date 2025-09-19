@@ -21,6 +21,30 @@ import {
 
 import { bytes32ToCID, getIpfsMetadata, getRelationshipData, getStructureData, getAddressData, getPropertyData, getIpfsFactSheetData } from "./utils/ipfs";
 
+// Function to get all wallet addresses from environment variables
+function getAllowedSubmitters(): string[] {
+  const wallets: string[] = [];
+
+  // Get all environment variables
+  const envVars = process.env;
+
+  // Find all variables that start with ENVIO_WALLET_ADDRESS
+  for (const [key, value] of Object.entries(envVars)) {
+    if (key.startsWith('ENVIO_WALLET_ADDRESS') && value) {
+      wallets.push(value);
+    }
+  }
+
+  if (wallets.length === 0) {
+    throw new Error('CRITICAL: No wallet addresses found in environment variables starting with ENVIO_WALLET_ADDRESS. Indexer cannot proceed without valid wallet addresses.');
+  }
+
+  return wallets;
+}
+
+// Get allowed submitters from environment variables - this will crash if none found
+const allowedSubmitters = getAllowedSubmitters();
+
 ERC1967Proxy.DataGroupConsensusUpdated.handler(async ({ event, context }) => {
   const entity: ERC1967Proxy_DataGroupConsensusUpdated = {
     id: `${event.chainId}_${event.block.number}_${event.logIndex}`,
@@ -35,11 +59,6 @@ ERC1967Proxy.DataGroupConsensusUpdated.handler(async ({ event, context }) => {
 });
 
 ERC1967Proxy.DataGroupHeartBeat.handler(async ({ event, context }) => {
-  // Only process events from specific submitters
-  const allowedSubmitters = [
-    "0x2C810CD120eEb840a7012b77a2B4F19889Ecf65C"
-  ];
-
   if (!allowedSubmitters.includes(event.params.submitter)) {
     context.log.info(`Skipping HeartBeat event - only processing events from specific submitters`, {
       submitter: event.params.submitter,
@@ -361,12 +380,6 @@ ERC1967Proxy.DataGroupHeartBeat.handler(async ({ event, context }) => {
 });
 
 ERC1967Proxy.DataSubmitted.handler(async ({ event, context }) => {
-  // Only process events from specific submitters
-  const allowedSubmitters = [
-    "0x2C810CD120eEb840a7012b77a2B4F19889Ecf65C",
-    "0x2B4C5eBE66866dc0b88A05fFa4979D8830a889E9"
-  ];
-
   if (!allowedSubmitters.includes(event.params.submitter)) {
     context.log.info(`Skipping DataSubmitted event - only processing events from specific submitters`, {
       submitter: event.params.submitter,
