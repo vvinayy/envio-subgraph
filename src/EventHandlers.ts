@@ -19,28 +19,8 @@ import {
   Ipfs,
 } from "generated";
 
-import { bytes32ToCID, getIpfsMetadata, getRelationshipData, getStructureData, getAddressData, getPropertyData, getIpfsFactSheetData } from "./utils/ipfs";
-
-// Function to get all wallet addresses from environment variables
-function getAllowedSubmitters(): string[] {
-  const wallets: string[] = [];
-
-  // Get all environment variables
-  const envVars = process.env;
-
-  // Find all variables that start with ENVIO_WALLET_ADDRESS
-  for (const [key, value] of Object.entries(envVars)) {
-    if (key.startsWith('ENVIO_WALLET_ADDRESS') && value) {
-      wallets.push(value);
-    }
-  }
-
-  if (wallets.length === 0) {
-    throw new Error('CRITICAL: No wallet addresses found in environment variables starting with ENVIO_WALLET_ADDRESS. Indexer cannot proceed without valid wallet addresses.');
-  }
-
-  return wallets;
-}
+import { bytes32ToCID, getIpfsMetadata, getPropertyData } from "./utils/ipfs";
+import { getAllowedSubmitters, processCountyData } from "./utils/eventHelpers";
 
 // Get allowed submitters from environment variables - this will crash if none found
 const allowedSubmitters = getAllowedSubmitters();
@@ -91,237 +71,50 @@ ERC1967Proxy.DataGroupHeartBeat.handler(async ({ event, context }) => {
     let addressId: string | undefined;
     let propertyDataId: string | undefined;
     let ipfsId: string | undefined;
+    let lotId: string | undefined;
+    let utilityId: string | undefined;
 
     if (metadata.label === "County") {
-      // Process structure data if available
-      const structureCid = metadata.relationships?.property_has_structure?.["/"];
-      if (structureCid) {
-        try {
-          const relationshipData = await context.effect(getRelationshipData, structureCid);
+      // Process County data first to get parcel_identifier
+      const result = await processCountyData(context, metadata, cid, propertyId);
+      structureId = result.structureId;
+      addressId = result.addressId;
+      propertyDataId = result.propertyDataId;
+      ipfsId = result.ipfsId;
+      lotId = result.lotId;
+      utilityId = result.utilityId;
+      parcelIdentifier = result.parcelIdentifier;
 
-          // Fetch structure data from "to" part
-          try {
-            const structureDataCid = relationshipData.to["/"];
-            const structureData = await context.effect(getStructureData, structureDataCid);
+      // Use parcel_identifier as the main entity ID, fallback to propertyHash
+      const mainEntityId = parcelIdentifier || propertyId;
 
-            structureId = structureDataCid; // Use the CID as the structure ID
-            const structureEntity: Structure = {
-              id: structureId,
-              roof_date: structureData.roof_date || undefined,
-              architectural_style_type: structureData.architectural_style_type || undefined,
-              attachment_type: structureData.attachment_type || undefined,
-              ceiling_condition: structureData.ceiling_condition || undefined,
-              ceiling_height_average: structureData.ceiling_height_average || undefined,
-              ceiling_insulation_type: structureData.ceiling_insulation_type || undefined,
-              ceiling_structure_material: structureData.ceiling_structure_material || undefined,
-              ceiling_surface_material: structureData.ceiling_surface_material || undefined,
-              exterior_door_material: structureData.exterior_door_material || undefined,
-              exterior_wall_condition: structureData.exterior_wall_condition || undefined,
-              exterior_wall_insulation_type: structureData.exterior_wall_insulation_type || undefined,
-              exterior_wall_material_primary: structureData.exterior_wall_material_primary || undefined,
-              exterior_wall_material_secondary: structureData.exterior_wall_material_secondary || undefined,
-              flooring_condition: structureData.flooring_condition || undefined,
-              flooring_material_primary: structureData.flooring_material_primary || undefined,
-              flooring_material_secondary: structureData.flooring_material_secondary || undefined,
-              foundation_condition: structureData.foundation_condition || undefined,
-              foundation_material: structureData.foundation_material || undefined,
-              foundation_type: structureData.foundation_type || undefined,
-              foundation_waterproofing: structureData.foundation_waterproofing || undefined,
-              gutters_condition: structureData.gutters_condition || undefined,
-              gutters_material: structureData.gutters_material || undefined,
-              interior_door_material: structureData.interior_door_material || undefined,
-              interior_wall_condition: structureData.interior_wall_condition || undefined,
-              interior_wall_finish_primary: structureData.interior_wall_finish_primary || undefined,
-              interior_wall_finish_secondary: structureData.interior_wall_finish_secondary || undefined,
-              interior_wall_structure_material: structureData.interior_wall_structure_material || undefined,
-              interior_wall_surface_material_primary: structureData.interior_wall_surface_material_primary || undefined,
-              interior_wall_surface_material_secondary: structureData.interior_wall_surface_material_secondary || undefined,
-              number_of_stories: structureData.number_of_stories || undefined,
-              primary_framing_material: structureData.primary_framing_material || undefined,
-              request_identifier: structureData.request_identifier || undefined,
-              roof_age_years: structureData.roof_age_years || undefined,
-              roof_condition: structureData.roof_condition || undefined,
-              roof_covering_material: structureData.roof_covering_material || undefined,
-              roof_design_type: structureData.roof_design_type || undefined,
-              roof_material_type: structureData.roof_material_type || undefined,
-              roof_structure_material: structureData.roof_structure_material || undefined,
-              roof_underlayment_type: structureData.roof_underlayment_type || undefined,
-              secondary_framing_material: structureData.secondary_framing_material || undefined,
-              structural_damage_indicators: structureData.structural_damage_indicators || undefined,
-              subfloor_material: structureData.subfloor_material || undefined,
-              window_frame_material: structureData.window_frame_material || undefined,
-              window_glazing_type: structureData.window_glazing_type || undefined,
-              window_operation_type: structureData.window_operation_type || undefined,
-              window_screen_material: structureData.window_screen_material || undefined
-            };
-            context.Structure.set(structureEntity);
+      // Re-process sales history with correct mainEntityId if parcelIdentifier exists
+      if (parcelIdentifier && parcelIdentifier !== propertyId) {
+        // Need to update sales history entities with correct property_id
+        for (const salesEntity of result.salesHistoryEntities) {
+          const updatedSalesEntity = {
+            ...salesEntity,
+            property_id: mainEntityId
+          };
+          context.SalesHistory.set(updatedSalesEntity);
+        }
 
-            context.log.info(`Updated Structure entity from HeartBeat`, {
-              structureId,
-              roof_date: structureData.roof_date
-            });
-          } catch (structureError) {
-            context.log.warn(`Failed to fetch STRUCTURE data from HeartBeat`, {
-              cid,
-              structureCid,
-              structureDataCid: relationshipData.to?.["/"] || "missing",
-              error: (structureError as Error).message
-            });
-          }
-
-          // Fetch property data from "from" part if available
-          if (relationshipData.from && relationshipData.from["/"]) {
-            try {
-              const propertyDataCid = relationshipData.from["/"];
-              const propertyData = await context.effect(getPropertyData, propertyDataCid);
-
-              propertyDataId = propertyDataCid; // Use the CID as the property ID
-              const propertyEntity: Property = {
-                id: propertyDataId,
-                property_type: propertyData.property_type || undefined,
-                property_structure_built_year: propertyData.property_structure_built_year || undefined,
-                property_effective_built_year: propertyData.property_effective_built_year || undefined,
-                parcel_identifier: propertyData.parcel_identifier || undefined,
-                area_under_air: propertyData.area_under_air || undefined,
-                historic_designation: propertyData.historic_designation || undefined,
-                livable_floor_area: propertyData.livable_floor_area || undefined,
-                number_of_units: propertyData.number_of_units || undefined,
-                number_of_units_type: propertyData.number_of_units_type || undefined,
-                property_legal_description_text: propertyData.property_legal_description_text || undefined,
-                request_identifier: propertyData.request_identifier || undefined,
-                subdivision: propertyData.subdivision || undefined,
-                total_area: propertyData.total_area || undefined,
-                zoning: propertyData.zoning || undefined
-              };
-              context.Property.set(propertyEntity);
-
-              // Use parcel_identifier as the main entity ID if available
-              if (propertyData.parcel_identifier) {
-                parcelIdentifier = propertyData.parcel_identifier;
-              }
-
-              context.log.info(`Updated Property entity from HeartBeat`, {
-                propertyDataId,
-                property_type: propertyData.property_type,
-                property_structure_built_year: propertyData.property_structure_built_year,
-                property_effective_built_year: propertyData.property_effective_built_year,
-                parcel_identifier: propertyData.parcel_identifier
-              });
-            } catch (propertyError) {
-              context.log.warn(`Failed to fetch PROPERTY data from HeartBeat`, {
-                cid,
-                structureCid,
-                propertyDataCid: relationshipData.from["/"],
-                error: (propertyError as Error).message
-              });
-            }
-          }
-        } catch (relationshipError) {
-          context.log.warn(`Failed to fetch RELATIONSHIP data from HeartBeat`, {
-            cid,
-            structureCid,
-            error: (relationshipError as Error).message
-          });
+        // Need to update tax entities with correct property_id
+        for (const taxEntity of result.taxEntities) {
+          const updatedTaxEntity = {
+            ...taxEntity,
+            property_id: mainEntityId
+          };
+          context.Tax.set(updatedTaxEntity);
         }
       }
 
-      // Process address data using address_has_fact_sheet relationship
-      const addressFactSheetCid = metadata.relationships?.address_has_fact_sheet?.[0]?.["/"];
-      if (addressFactSheetCid) {
-        try {
-          const relationshipData = await context.effect(getRelationshipData, addressFactSheetCid);
-
-          // Fetch address data from "from" part
-          if (relationshipData.from && relationshipData.from["/"]) {
-            try {
-              const addressDataCid = relationshipData.from["/"];
-              const addressData = await context.effect(getAddressData, addressDataCid);
-
-              addressId = addressDataCid; // Use the CID as the address ID
-              const addressEntity: Address = {
-                id: addressId,
-                county_name: addressData.county_name || undefined,
-                request_identifier: addressData.request_identifier || undefined,
-                block: addressData.block || undefined,
-                city_name: addressData.city_name || undefined,
-                country_code: addressData.country_code || undefined,
-                latitude: addressData.latitude || undefined,
-                longitude: addressData.longitude || undefined,
-                lot: addressData.lot || undefined,
-                municipality_name: addressData.municipality_name || undefined,
-                plus_four_postal_code: addressData.plus_four_postal_code || undefined,
-                postal_code: addressData.postal_code || undefined,
-                range: addressData.range || undefined,
-                route_number: addressData.route_number || undefined,
-                section: addressData.section || undefined,
-                state_code: addressData.state_code || undefined,
-                street_direction_prefix: addressData.street_pre_directional_text || undefined,
-                street_direction_suffix: addressData.street_post_directional_text || undefined,
-                street_name: addressData.street_name || undefined,
-                street_number: addressData.street_number || undefined,
-                street_suffix: addressData.street_suffix_type || undefined,
-                unit_identifier: addressData.unit_identifier || undefined,
-                township: addressData.township || undefined
-              };
-              context.Address.set(addressEntity);
-
-              context.log.info(`Updated Address entity from HeartBeat`, {
-                addressId,
-                county_name: addressData.county_name,
-                city_name: addressData.city_name,
-                street_name: addressData.street_name,
-                street_number: addressData.street_number
-              });
-            } catch (addressError) {
-              context.log.warn(`Failed to fetch ADDRESS data from HeartBeat`, {
-                cid,
-                addressFactSheetCid,
-                addressDataCid: relationshipData.from?.["/"] || "missing",
-                error: (addressError as Error).message
-              });
-            }
-          }
-
-          // Fetch IPFS data from "to" part (fact sheet data)
-          if (relationshipData.to && relationshipData.to["/"]) {
-            try {
-              const ipfsDataCid = relationshipData.to["/"];
-              const ipfsData = await context.effect(getIpfsFactSheetData, ipfsDataCid);
-
-              ipfsId = ipfsDataCid; // Use the CID as the IPFS ID
-              const ipfsEntity: Ipfs = {
-                id: ipfsId,
-                ipfs_url: ipfsData.ipfs_url || "",
-                full_generation_command: ipfsData.full_generation_command || undefined
-              };
-              context.Ipfs.set(ipfsEntity);
-
-              context.log.info(`Updated IPFS entity from HeartBeat`, {
-                ipfsId: ipfsDataCid,
-                ipfs_url: ipfsData.ipfs_url
-              });
-            } catch (ipfsError) {
-              context.log.warn(`Failed to fetch IPFS fact sheet data from HeartBeat`, {
-                cid,
-                addressFactSheetCid,
-                ipfsDataCid: relationshipData.to?.["/"] || "missing",
-                error: (ipfsError as Error).message
-              });
-            }
-          }
-        } catch (relationshipError) {
-          context.log.warn(`Failed to fetch relationship data for address fact sheet`, {
-            cid,
-            addressFactSheetCid,
-            error: (relationshipError as Error).message
-          });
-        }
-      }
-
-      context.log.info(`Updated County property from HeartBeat`, {
-        propertyId,
-        label: metadata.label,
-        structureId
+      context.log.info(`Processed sales history from HeartBeat`, {
+        propertyHash: event.params.propertyHash,
+        salesHistoryCount: result.salesHistoryEntities.length,
+        taxCount: result.taxEntities.length,
+        mainEntityId,
+        parcelIdentifier
       });
     } else if (metadata.label === "Seed") {
       // Skip Seed processing - only process County labels
@@ -357,7 +150,9 @@ ERC1967Proxy.DataGroupHeartBeat.handler(async ({ event, context }) => {
       structure_id: structureId,
       address_id: addressId,
       property_id: propertyDataId,
-      ipfs_id: ipfsId
+      ipfs_id: ipfsId,
+      lot_id: lotId,
+      utility_id: utilityId,
     };
 
     context.DataSubmittedWithLabel.set(labelEntity);
@@ -412,237 +207,50 @@ ERC1967Proxy.DataSubmitted.handler(async ({ event, context }) => {
     let addressId: string | undefined;
     let propertyDataId: string | undefined;
     let ipfsId: string | undefined;
+    let lotId: string | undefined;
+    let utilityId: string | undefined;
 
     if (metadata.label === "County") {
-      // Process structure data if available
-      const structureCid = metadata.relationships?.property_has_structure?.["/"];
-      if (structureCid) {
-        try {
-          const relationshipData = await context.effect(getRelationshipData, structureCid);
+      // Process County data first to get parcel_identifier
+      const result = await processCountyData(context, metadata, cid, propertyId);
+      structureId = result.structureId;
+      addressId = result.addressId;
+      propertyDataId = result.propertyDataId;
+      ipfsId = result.ipfsId;
+      lotId = result.lotId;
+      utilityId = result.utilityId;
+      parcelIdentifier = result.parcelIdentifier;
 
-          // Fetch structure data from "to" part
-          try {
-            const structureDataCid = relationshipData.to["/"];
-            const structureData = await context.effect(getStructureData, structureDataCid);
+      // Use parcel_identifier as the main entity ID, fallback to propertyHash
+      const mainEntityId = parcelIdentifier || propertyId;
 
-            structureId = structureDataCid; // Use the CID as the structure ID
-            const structureEntity: Structure = {
-              id: structureId,
-              roof_date: structureData.roof_date || undefined,
-              architectural_style_type: structureData.architectural_style_type || undefined,
-              attachment_type: structureData.attachment_type || undefined,
-              ceiling_condition: structureData.ceiling_condition || undefined,
-              ceiling_height_average: structureData.ceiling_height_average || undefined,
-              ceiling_insulation_type: structureData.ceiling_insulation_type || undefined,
-              ceiling_structure_material: structureData.ceiling_structure_material || undefined,
-              ceiling_surface_material: structureData.ceiling_surface_material || undefined,
-              exterior_door_material: structureData.exterior_door_material || undefined,
-              exterior_wall_condition: structureData.exterior_wall_condition || undefined,
-              exterior_wall_insulation_type: structureData.exterior_wall_insulation_type || undefined,
-              exterior_wall_material_primary: structureData.exterior_wall_material_primary || undefined,
-              exterior_wall_material_secondary: structureData.exterior_wall_material_secondary || undefined,
-              flooring_condition: structureData.flooring_condition || undefined,
-              flooring_material_primary: structureData.flooring_material_primary || undefined,
-              flooring_material_secondary: structureData.flooring_material_secondary || undefined,
-              foundation_condition: structureData.foundation_condition || undefined,
-              foundation_material: structureData.foundation_material || undefined,
-              foundation_type: structureData.foundation_type || undefined,
-              foundation_waterproofing: structureData.foundation_waterproofing || undefined,
-              gutters_condition: structureData.gutters_condition || undefined,
-              gutters_material: structureData.gutters_material || undefined,
-              interior_door_material: structureData.interior_door_material || undefined,
-              interior_wall_condition: structureData.interior_wall_condition || undefined,
-              interior_wall_finish_primary: structureData.interior_wall_finish_primary || undefined,
-              interior_wall_finish_secondary: structureData.interior_wall_finish_secondary || undefined,
-              interior_wall_structure_material: structureData.interior_wall_structure_material || undefined,
-              interior_wall_surface_material_primary: structureData.interior_wall_surface_material_primary || undefined,
-              interior_wall_surface_material_secondary: structureData.interior_wall_surface_material_secondary || undefined,
-              number_of_stories: structureData.number_of_stories || undefined,
-              primary_framing_material: structureData.primary_framing_material || undefined,
-              request_identifier: structureData.request_identifier || undefined,
-              roof_age_years: structureData.roof_age_years || undefined,
-              roof_condition: structureData.roof_condition || undefined,
-              roof_covering_material: structureData.roof_covering_material || undefined,
-              roof_design_type: structureData.roof_design_type || undefined,
-              roof_material_type: structureData.roof_material_type || undefined,
-              roof_structure_material: structureData.roof_structure_material || undefined,
-              roof_underlayment_type: structureData.roof_underlayment_type || undefined,
-              secondary_framing_material: structureData.secondary_framing_material || undefined,
-              structural_damage_indicators: structureData.structural_damage_indicators || undefined,
-              subfloor_material: structureData.subfloor_material || undefined,
-              window_frame_material: structureData.window_frame_material || undefined,
-              window_glazing_type: structureData.window_glazing_type || undefined,
-              window_operation_type: structureData.window_operation_type || undefined,
-              window_screen_material: structureData.window_screen_material || undefined
-            };
-            context.Structure.set(structureEntity);
+      // Re-process sales history with correct mainEntityId if parcelIdentifier exists
+      if (parcelIdentifier && parcelIdentifier !== propertyId) {
+        // Need to update sales history entities with correct property_id
+        for (const salesEntity of result.salesHistoryEntities) {
+          const updatedSalesEntity = {
+            ...salesEntity,
+            property_id: mainEntityId
+          };
+          context.SalesHistory.set(updatedSalesEntity);
+        }
 
-            context.log.info(`Updated Structure entity`, {
-              structureId,
-              roof_date: structureData.roof_date
-            });
-          } catch (structureError) {
-            context.log.warn(`Failed to fetch STRUCTURE data`, {
-              cid,
-              structureCid,
-              structureDataCid: relationshipData.to?.["/"] || "missing",
-              error: (structureError as Error).message
-            });
-          }
-
-          // Fetch property data from "from" part if available
-          if (relationshipData.from && relationshipData.from["/"]) {
-            try {
-              const propertyDataCid = relationshipData.from["/"];
-              const propertyData = await context.effect(getPropertyData, propertyDataCid);
-
-              propertyDataId = propertyDataCid; // Use the CID as the property ID
-              const propertyEntity: Property = {
-                id: propertyDataId,
-                property_type: propertyData.property_type || undefined,
-                property_structure_built_year: propertyData.property_structure_built_year || undefined,
-                property_effective_built_year: propertyData.property_effective_built_year || undefined,
-                parcel_identifier: propertyData.parcel_identifier || undefined,
-                area_under_air: propertyData.area_under_air || undefined,
-                historic_designation: propertyData.historic_designation || undefined,
-                livable_floor_area: propertyData.livable_floor_area || undefined,
-                number_of_units: propertyData.number_of_units || undefined,
-                number_of_units_type: propertyData.number_of_units_type || undefined,
-                property_legal_description_text: propertyData.property_legal_description_text || undefined,
-                request_identifier: propertyData.request_identifier || undefined,
-                subdivision: propertyData.subdivision || undefined,
-                total_area: propertyData.total_area || undefined,
-                zoning: propertyData.zoning || undefined
-              };
-              context.Property.set(propertyEntity);
-
-              // Use parcel_identifier as the main entity ID if available
-              if (propertyData.parcel_identifier) {
-                parcelIdentifier = propertyData.parcel_identifier;
-              }
-
-              context.log.info(`Updated Property entity`, {
-                propertyDataId,
-                property_type: propertyData.property_type,
-                property_structure_built_year: propertyData.property_structure_built_year,
-                property_effective_built_year: propertyData.property_effective_built_year,
-                parcel_identifier: propertyData.parcel_identifier
-              });
-            } catch (propertyError) {
-              context.log.warn(`Failed to fetch PROPERTY data`, {
-                cid,
-                structureCid,
-                propertyDataCid: relationshipData.from["/"],
-                error: (propertyError as Error).message
-              });
-            }
-          }
-        } catch (relationshipError) {
-          context.log.warn(`Failed to fetch RELATIONSHIP data`, {
-            cid,
-            structureCid,
-            error: (relationshipError as Error).message
-          });
+        // Need to update tax entities with correct property_id
+        for (const taxEntity of result.taxEntities) {
+          const updatedTaxEntity = {
+            ...taxEntity,
+            property_id: mainEntityId
+          };
+          context.Tax.set(updatedTaxEntity);
         }
       }
 
-      // Process address data using address_has_fact_sheet relationship
-      const addressFactSheetCid = metadata.relationships?.address_has_fact_sheet?.[0]?.["/"];
-      if (addressFactSheetCid) {
-        try {
-          const relationshipData = await context.effect(getRelationshipData, addressFactSheetCid);
-
-          // Fetch address data from "from" part
-          if (relationshipData.from && relationshipData.from["/"]) {
-            try {
-              const addressDataCid = relationshipData.from["/"];
-              const addressData = await context.effect(getAddressData, addressDataCid);
-
-              addressId = addressDataCid; // Use the CID as the address ID
-              const addressEntity: Address = {
-                id: addressId,
-                county_name: addressData.county_name || undefined,
-                request_identifier: addressData.request_identifier || undefined,
-                block: addressData.block || undefined,
-                city_name: addressData.city_name || undefined,
-                country_code: addressData.country_code || undefined,
-                latitude: addressData.latitude || undefined,
-                longitude: addressData.longitude || undefined,
-                lot: addressData.lot || undefined,
-                municipality_name: addressData.municipality_name || undefined,
-                plus_four_postal_code: addressData.plus_four_postal_code || undefined,
-                postal_code: addressData.postal_code || undefined,
-                range: addressData.range || undefined,
-                route_number: addressData.route_number || undefined,
-                section: addressData.section || undefined,
-                state_code: addressData.state_code || undefined,
-                street_direction_prefix: addressData.street_pre_directional_text || undefined,
-                street_direction_suffix: addressData.street_post_directional_text || undefined,
-                street_name: addressData.street_name || undefined,
-                street_number: addressData.street_number || undefined,
-                street_suffix: addressData.street_suffix_type || undefined,
-                unit_identifier: addressData.unit_identifier || undefined,
-                township: addressData.township || undefined
-              };
-              context.Address.set(addressEntity);
-
-              context.log.info(`Updated Address entity`, {
-                addressId,
-                county_name: addressData.county_name,
-                city_name: addressData.city_name,
-                street_name: addressData.street_name,
-                street_number: addressData.street_number
-              });
-            } catch (addressError) {
-              context.log.warn(`Failed to fetch ADDRESS data`, {
-                cid,
-                addressFactSheetCid,
-                addressDataCid: relationshipData.from?.["/"] || "missing",
-                error: (addressError as Error).message
-              });
-            }
-          }
-
-          // Fetch IPFS data from "to" part (fact sheet data)
-          if (relationshipData.to && relationshipData.to["/"]) {
-            try {
-              const ipfsDataCid = relationshipData.to["/"];
-              const ipfsData = await context.effect(getIpfsFactSheetData, ipfsDataCid);
-
-              ipfsId = ipfsDataCid; // Use the CID as the IPFS ID
-              const ipfsEntity: Ipfs = {
-                id: ipfsId,
-                ipfs_url: ipfsData.ipfs_url || "",
-                full_generation_command: ipfsData.full_generation_command || undefined
-              };
-              context.Ipfs.set(ipfsEntity);
-
-              context.log.info(`Updated IPFS entity`, {
-                ipfsId: ipfsDataCid,
-                ipfs_url: ipfsData.ipfs_url
-              });
-            } catch (ipfsError) {
-              context.log.warn(`Failed to fetch IPFS fact sheet data`, {
-                cid,
-                addressFactSheetCid,
-                ipfsDataCid: relationshipData.to?.["/"] || "missing",
-                error: (ipfsError as Error).message
-              });
-            }
-          }
-        } catch (relationshipError) {
-          context.log.warn(`Failed to fetch relationship data for address fact sheet`, {
-            cid,
-            addressFactSheetCid,
-            error: (relationshipError as Error).message
-          });
-        }
-      }
-
-      context.log.info(`Updated County property with structure data`, {
-        propertyId,
-        label: metadata.label,
-        structureId
+      context.log.info(`Processed sales history from DataSubmitted`, {
+        propertyHash: event.params.propertyHash,
+        salesHistoryCount: result.salesHistoryEntities.length,
+        taxCount: result.taxEntities.length,
+        mainEntityId,
+        parcelIdentifier
       });
     } else if (metadata.label === "Seed") {
       // Skip Seed processing - only process County labels
@@ -678,7 +286,9 @@ ERC1967Proxy.DataSubmitted.handler(async ({ event, context }) => {
       structure_id: structureId,
       address_id: addressId,
       property_id: propertyDataId,
-      ipfs_id: ipfsId
+      ipfs_id: ipfsId,
+      lot_id: lotId,
+      utility_id: utilityId,
     };
 
     context.DataSubmittedWithLabel.set(labelEntity);
@@ -760,4 +370,3 @@ ERC1967Proxy.Upgraded.handler(async ({ event, context }) => {
 
   context.ERC1967Proxy_Upgraded.set(entity);
 });
-//trigger indexing
