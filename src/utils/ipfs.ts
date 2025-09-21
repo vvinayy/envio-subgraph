@@ -106,7 +106,11 @@ async function fetchFromEndpoint(
     const fullUrl = buildGatewayUrl(endpoint.url, cid, endpoint.token);
     context.log.info(`Fetching IPFS content from gateway`, { cid, endpoint: endpoint.url });
 
-    const response = await fetch(fullUrl);
+    // Use longer timeout for endpoints with tokens (premium services like Pinata)
+    const timeout = endpoint.token ? 60000 : 30000; // 30s for token endpoints, 15s for public
+    const response = await fetch(fullUrl, {
+      signal: AbortSignal.timeout(timeout)
+    });
 
     if (response.ok) {
       const metadata: any = await response.json();
@@ -165,7 +169,11 @@ export const getRelationshipData = experimental_createEffect(
           const fullUrl = buildGatewayUrl(endpoint.url, cid, endpoint.token);
           context.log.info(`Fetching relationship data from gateway`, { cid, endpoint: endpoint.url });
 
-          const response = await fetch(fullUrl);
+          // Use longer timeout for endpoints with tokens (premium services like Pinata)
+          const timeout = endpoint.token ? 60000 : 30000; // 30s for token endpoints, 15s for public
+          const response = await fetch(fullUrl, {
+            signal: AbortSignal.timeout(timeout)
+          });
           if (response.ok) {
             const data: any = await response.json();
             if (data && data.to && data.to["/"]) {
@@ -218,7 +226,11 @@ export const getStructureData = experimental_createEffect(
           const fullUrl = buildGatewayUrl(endpoint.url, cid, endpoint.token);
           context.log.info(`Fetching structure data from gateway`, { cid, endpoint: endpoint.url });
 
-          const response = await fetch(fullUrl);
+          // Use longer timeout for endpoints with tokens (premium services like Pinata)
+          const timeout = endpoint.token ? 60000 : 30000; // 30s for token endpoints, 15s for public
+          const response = await fetch(fullUrl, {
+            signal: AbortSignal.timeout(timeout)
+          });
           if (response.ok) {
             const data: any = await response.json();
             if (data && typeof data === 'object') {
@@ -319,7 +331,11 @@ export const getAddressData = experimental_createEffect(
           const fullUrl = buildGatewayUrl(endpoint.url, cid, endpoint.token);
           context.log.info(`Fetching address data from gateway`, { cid, endpoint: endpoint.url });
 
-          const response = await fetch(fullUrl);
+          // Use longer timeout for endpoints with tokens (premium services like Pinata)
+          const timeout = endpoint.token ? 60000 : 30000; // 30s for token endpoints, 15s for public
+          const response = await fetch(fullUrl, {
+            signal: AbortSignal.timeout(timeout)
+          });
           if (response.ok) {
             const data: any = await response.json();
             if (data && typeof data === 'object') {
@@ -399,7 +415,11 @@ export const getPropertyData = experimental_createEffect(
           const fullUrl = buildGatewayUrl(endpoint.url, cid, endpoint.token);
           context.log.info(`Fetching property data from gateway`, { cid, endpoint: endpoint.url });
 
-          const response = await fetch(fullUrl);
+          // Use longer timeout for endpoints with tokens (premium services like Pinata)
+          const timeout = endpoint.token ? 60000 : 30000; // 30s for token endpoints, 15s for public
+          const response = await fetch(fullUrl, {
+            signal: AbortSignal.timeout(timeout)
+          });
           if (response.ok) {
             const data: any = await response.json();
             if (data && typeof data === 'object') {
@@ -481,7 +501,11 @@ export const getIpfsFactSheetData = experimental_createEffect(
           const fullUrl = buildGatewayUrl(endpoint.url, cid, endpoint.token);
           context.log.info(`Fetching fact sheet data from gateway`, { cid, endpoint: endpoint.url });
 
-          const response = await fetch(fullUrl);
+          // Use longer timeout for endpoints with tokens (premium services like Pinata)
+          const timeout = endpoint.token ? 60000 : 30000; // 30s for token endpoints, 15s for public
+          const response = await fetch(fullUrl, {
+            signal: AbortSignal.timeout(timeout)
+          });
           if (response.ok) {
             const data: any = await response.json();
             if (data && typeof data === 'object') {
@@ -580,7 +604,11 @@ export const getLotData = experimental_createEffect(
           const fullUrl = buildGatewayUrl(endpoint.url, cid, endpoint.token);
           context.log.info(`Fetching lot data from gateway`, { cid, endpoint: endpoint.url });
 
-          const response = await fetch(fullUrl);
+          // Use longer timeout for endpoints with tokens (premium services like Pinata)
+          const timeout = endpoint.token ? 60000 : 30000; // 30s for token endpoints, 15s for public
+          const response = await fetch(fullUrl, {
+            signal: AbortSignal.timeout(timeout)
+          });
           if (response.ok) {
             const data: any = await response.json();
             if (data && typeof data === 'object') {
@@ -650,7 +678,11 @@ export const getSalesHistoryData = experimental_createEffect(
           const fullUrl = buildGatewayUrl(endpoint.url, cid, endpoint.token);
           context.log.info(`Fetching sales history data from gateway`, { cid, endpoint: endpoint.url });
 
-          const response = await fetch(fullUrl);
+          // Use longer timeout for endpoints with tokens (premium services like Pinata)
+          const timeout = endpoint.token ? 60000 : 30000; // 30s for token endpoints, 15s for public
+          const response = await fetch(fullUrl, {
+            signal: AbortSignal.timeout(timeout)
+          });
           if (response.ok) {
             const data: any = await response.json();
             if (data && typeof data === 'object') {
@@ -711,7 +743,11 @@ export const getTaxData = experimental_createEffect(
           const fullUrl = buildGatewayUrl(endpoint.url, cid, endpoint.token);
           context.log.info(`Fetching tax data from gateway`, { cid, endpoint: endpoint.url });
 
-          const response = await fetch(fullUrl);
+          // Use longer timeout for endpoints with tokens (premium services like Pinata)
+          const timeout = endpoint.token ? 60000 : 30000; // 30s for token endpoints, 15s for public
+          const response = await fetch(fullUrl, {
+            signal: AbortSignal.timeout(timeout)
+          });
           if (response.ok) {
             const data: any = await response.json();
             if (data && typeof data === 'object') {
@@ -782,7 +818,11 @@ export const getUtilityData = experimental_createEffect(
           const fullUrl = buildGatewayUrl(endpoint.url, cid, endpoint.token);
           context.log.info(`Fetching utility data from gateway`, { cid, endpoint: endpoint.url });
 
-          const response = await fetch(fullUrl);
+          // Use longer timeout for endpoints with tokens (premium services like Pinata)
+          const timeout = endpoint.token ? 60000 : 30000; // 30s for token endpoints, 15s for public
+          const response = await fetch(fullUrl, {
+            signal: AbortSignal.timeout(timeout)
+          });
           if (response.ok) {
             const data: any = await response.json();
             if (data && typeof data === 'object') {
