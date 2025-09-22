@@ -150,11 +150,22 @@ function buildGatewayUrl(baseUrl: string, cid: string, token: string | null): st
 function shouldRetryIndefinitely(response?: Response, error?: Error): boolean {
     // Retry indefinitely on connection/timeout errors
     if (error?.name === 'ConnectTimeoutError' ||
+        error?.name === 'TypeError' ||
+        error?.name === 'FetchError' ||
         error?.message?.includes('timeout') ||
         error?.message?.includes('ECONNREFUSED') ||
         error?.message?.includes('ENOTFOUND') ||
         error?.message?.includes('ETIMEDOUT') ||
-        error?.name === 'FetchError') {
+        error?.message?.includes('fetch failed')) {
+        return true;
+    }
+
+    // Also check the underlying error cause for connection issues
+    const cause = (error as any)?.cause;
+    if (cause?.name === 'ConnectTimeoutError' ||
+        cause?.code === 'UND_ERR_CONNECT_TIMEOUT' ||
+        cause?.message?.includes('Connect Timeout Error') ||
+        cause?.message?.includes('timeout')) {
         return true;
     }
 
@@ -250,7 +261,7 @@ async function fetchDataWithInfiniteRetry<T>(
                         attempt: totalAttempts
                     });
                 } else {
-                    context.log.error(`${dataType} fetch failed with non-retriable error - FULL DEBUG`, {
+                    context.log.error(`${dataType} fetch failed with non-retriable error`, {
                         cid,
                         endpoint: endpoint.url,
                         error: error.message,
