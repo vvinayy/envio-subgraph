@@ -250,12 +250,16 @@ async function fetchDataWithInfiniteRetry<T>(
                         attempt: totalAttempts
                     });
                 } else {
-                    context.log.warn(`${dataType} fetch failed with non-retriable error`, {
+                    context.log.error(`${dataType} fetch failed with non-retriable error - FULL DEBUG`, {
                         cid,
                         endpoint: endpoint.url,
                         error: error.message,
                         errorName: error.name,
-                        attempt: totalAttempts
+                        errorStack: error.stack,
+                        errorCause: (error as any).cause,
+                        fullUrl: buildGatewayUrl(endpoint.url, cid, endpoint.token),
+                        attempt: totalAttempts,
+                        errorStringified: JSON.stringify(error, Object.getOwnPropertyNames(error))
                     });
                 }
             }
