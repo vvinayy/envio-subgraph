@@ -85,30 +85,53 @@ export function bytes32ToCID(dataHashHex: string): string {
   return "b" + output;
 }
 
+// Build gateway configuration with environment variables as priority
+function buildEndpoints() {
+  const endpoints = [];
+
+  // Check for custom gateway from environment variables (highest priority)
+  const envGateway = process.env.ENVIO_IPFS_GATEWAY;
+  const envToken = process.env.ENVIO_GATEWAY_TOKEN;
+
+  if (envGateway) {
+    endpoints.push({
+      url: envGateway,
+      token: envToken || null
+    });
+  }
+
+  // Add fallback gateways
+  const fallbackEndpoints = [
+    { url: "https://sapphire-academic-leech-250.mypinata.cloud/ipfs", token: "CcV1DorYnAo9eZr_P4DXg8TY4SB-QuUw_b6C70JFs2M8aY0fJudBnle2mUyCYyTu" },
+    { url: "https://indexing-node-envio.mypinata.cloud/ipfs", token: "iYp6WBHfIL-yzshn3WnFyCJRmIH3iBqwcD9Jou-pgTmtr20GXaDWXxqTg9zOP6dk" },
+    { url: "https://dry-fuchsia-ox.myfilebase.com/ipfs/", token: null },
+    { url: "https://indexing-node-envio-2.mypinata.cloud/ipfs", token: "OdQztc-h-6PjCKKJnUvYpjjw_m8n4KsRBMRWOGtyipd-KVRG7rTiC2D5bKKBDA2B" },
+    { url: "https://indexing-node-envio-3.mypinata.cloud/ipfs", token: "cSEbVBstzkkTTco4oO-iBbuhX_sahOth00XH2rpE7E30IuwnE6A7gdxSa_ZSfWs6" },
+    { url: "https://indexing-node-envio-4.mypinata.cloud/ipfs", token: "BZA3Pmr1XNG7HqS49-owAGq0UcHxEmSBBK58-VTN4XeY3cP0DeUFXdhuo6z8sFfk" },
+    { url: "https://indexing-node-envio-5.mypinata.cloud/ipfs", token: "oe6OopKUwS21PFia0i9o9fJIjPp5lFcosrcW6r1NTCh5BNEylK6blp0JQyFf5Qf3" },
+    { url: "https://moral-aqua-catfish.myfilebase.com/ipfs", token: null },
+    { url: "https://bronze-blank-cod-736.mypinata.cloud/ipfs", token: "0EicEGVVMxNrYgog3s1-Aud_3v32eSvF9nYypTkQ4Qy-G4M8N-zdBvL1DNYjlupe" },
+    { url: "https://indexing2.myfilebase.com/ipfs", token: null },
+    { url: "https://ipfs.io/ipfs", token: null },
+    { url: "https://gateway.ipfs.io/ipfs", token: null },
+    { url: "https://dweb.link/ipfs", token: null },
+    { url: "https://w3s.link/ipfs", token: null },
+    { url: "https://gateway.pinata.cloud/ipfs", token: null },
+  ];
+
+  // Add fallback endpoints, avoiding duplicates
+  for (const fallback of fallbackEndpoints) {
+    const isDuplicate = endpoints.some(existing => existing.url === fallback.url);
+    if (!isDuplicate) {
+      endpoints.push(fallback);
+    }
+  }
+
+  return endpoints;
+}
+
 // Gateway configuration with optional authentication tokens
-const endpoints = [
-  // Multiple public gateways for reliability
-  { url: "https://sapphire-academic-leech-250.mypinata.cloud/ipfs", token: "CcV1DorYnAo9eZr_P4DXg8TY4SB-QuUw_b6C70JFs2M8aY0fJudBnle2mUyCYyTu" },
-  { url: "https://indexing-node-envio.mypinata.cloud/ipfs", token: "iYp6WBHfIL-yzshn3WnFyCJRmIH3iBqwcD9Jou-pgTmtr20GXaDWXxqTg9zOP6dk" },
-  { url: "https://dry-fuchsia-ox.myfilebase.com/ipfs/", token: null },
-  { url: "https://indexing-node-envio-2.mypinata.cloud/ipfs", token: "OdQztc-h-6PjCKKJnUvYpjjw_m8n4KsRBMRWOGtyipd-KVRG7rTiC2D5bKKBDA2B" },
-  { url: "https://indexing-node-envio-3.mypinata.cloud/ipfs", token: "cSEbVBstzkkTTco4oO-iBbuhX_sahOth00XH2rpE7E30IuwnE6A7gdxSa_ZSfWs6" },
-  { url: "https://indexing-node-envio-4.mypinata.cloud/ipfs", token: "BZA3Pmr1XNG7HqS49-owAGq0UcHxEmSBBK58-VTN4XeY3cP0DeUFXdhuo6z8sFfk" },
-  { url: "https://indexing-node-envio-5.mypinata.cloud/ipfs", token: "oe6OopKUwS21PFia0i9o9fJIjPp5lFcosrcW6r1NTCh5BNEylK6blp0JQyFf5Qf3" },
-  { url: "https://indexing-node-envio-6.mypinata.cloud/ipfs", token: "WXB6rg3NUOUf4RJqZ92mphaJzui37iTm5KnYdINfEViuecA7Pi5NZnbmWv1JLO0o" },
-  { url: "https://indexing-node-envio-7.mypinata.cloud/ipfs", token: "mENdB9KWRja3LKxHuPM9ALFnpDeIq3hKO2kkmDNyAVL7lwSpEnIjoEe6CKQHoE_c" },
-  { url: "https://indexing-node-envio-8.mypinata.cloud/ipfs", token: "cI2sPS-C2G5O1jhDSGGIS0wrxKbLg7EvOSbgXuKbaR0JL7U1PMtp-bqg6i2enIaw" },
-  { url: "https://indexing-node-envio-9.mypinata.cloud/ipfs", token: "90TLB7uLlOGodY8BWEmJa47nWKoru1Bd54yZQcbPrp6GJOG3-SAayrGHi6wfiXry" },
-  { url: "https://indexing-node-envio-10.mypinata.cloud/ipfs", token: "XZ5G02AF45h_a8Fvv4S5HR9LthJ5y27S2xAMivgfW002aVr2bhK5XqflTc_QWk02" },
-  { url: "https://moral-aqua-catfish.myfilebase.com/ipfs", token: null },
-  { url: "https://bronze-blank-cod-736.mypinata.cloud/ipfs", token: "0EicEGVVMxNrYgog3s1-Aud_3v32eSvF9nYypTkQ4Qy-G4M8N-zdBvL1DNYjlupe" },
-  { url: "https://indexing2.myfilebase.com/ipfs", token: null },
-  { url: "https://ipfs.io/ipfs", token: null },
-  { url: "https://gateway.ipfs.io/ipfs", token: null },
-  { url: "https://dweb.link/ipfs", token: null },
-  { url: "https://w3s.link/ipfs", token: null },
-  { url: "https://gateway.pinata.cloud/ipfs", token: null },
-];
+const endpoints = buildEndpoints();
 
 // Helper function to build URL with optional token
 function buildGatewayUrl(baseUrl: string, cid: string, token: string | null): string {
@@ -119,18 +142,31 @@ function buildGatewayUrl(baseUrl: string, cid: string, token: string | null): st
   return url;
 }
 
-// Helper function to check if error should trigger retry
-function shouldRetry(response?: Response, error?: Error): boolean {
-  // Retry on timeout errors
-  if (error?.name === 'ConnectTimeoutError' || error?.message?.includes('timeout')) {
+// Helper function to check if error should trigger retry (connection errors, timeouts, rate limits)
+function shouldRetryIndefinitely(response?: Response, error?: Error): boolean {
+  // Retry indefinitely on connection/timeout errors
+  if (error?.name === 'ConnectTimeoutError' ||
+      error?.message?.includes('timeout') ||
+      error?.message?.includes('ECONNREFUSED') ||
+      error?.message?.includes('ENOTFOUND') ||
+      error?.message?.includes('ETIMEDOUT') ||
+      error?.name === 'FetchError') {
     return true;
   }
 
-  // Retry on specific HTTP status codes
+  // Retry indefinitely on specific HTTP status codes
   if (response) {
-    return response.status === 502 || response.status === 504 || response.status === 429;
+    return response.status === 429 || response.status === 502 || response.status === 504;
   }
 
+  return false;
+}
+
+// Helper function for other non-retriable errors (give up after few attempts)
+function shouldRetryLimited(response?: Response, error?: Error): boolean {
+  if (response) {
+    return response.status >= 500 && response.status !== 502 && response.status !== 504;
+  }
   return false;
 }
 
@@ -141,107 +177,118 @@ async function waitWithBackoff(attempt: number): Promise<void> {
   await new Promise(resolve => setTimeout(resolve, delay));
 }
 
-async function fetchFromEndpointWithRetry(
+// New infinite retry function for IPFS data fetching that never gives up on connection errors
+async function fetchDataWithInfiniteRetry<T>(
     context: EffectContext,
-    endpoint: { url: string; token: string | null },
     cid: string,
-    maxAttempts: number = 3
-): Promise<IpfsMetadata | null> {
-  let lastError: Error | null = null;
-  let lastResponse: Response | null = null;
+    dataType: string,
+    validator: (data: any) => boolean,
+    transformer: (data: any) => T
+): Promise<T> {
+  let totalAttempts = 0;
 
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    try {
-      const fullUrl = buildGatewayUrl(endpoint.url, cid, endpoint.token);
+  while (true) {
+    for (let i = 0; i < endpoints.length; i++) {
+      const endpoint = endpoints[i];
+      totalAttempts++;
 
-      const response = await fetch(fullUrl);
-      lastResponse = response;
+      try {
+        const fullUrl = buildGatewayUrl(endpoint.url, cid, endpoint.token);
+        const response = await fetch(fullUrl);
 
-      if (response.ok) {
-        const metadata: any = await response.json();
-
-        // Extract label from metadata
-        if (metadata && typeof metadata === 'object' && metadata.label && typeof metadata.label === 'string') {
-          if (attempt > 0) {
-            context.log.info(`IPFS fetch succeeded on attempt ${attempt + 1}`, {
+        if (response.ok) {
+          const data: any = await response.json();
+          if (validator(data)) {
+            if (totalAttempts > 1) {
+              context.log.info(`${dataType} fetch succeeded after ${totalAttempts} attempts`, {
+                cid,
+                endpoint: endpoint.url,
+                totalAttempts
+              });
+            }
+            return transformer(data);
+          } else {
+            context.log.warn(`${dataType} validation failed`, {
               cid,
-              endpoint: endpoint.url
+              endpoint: endpoint.url,
+              attempt: totalAttempts
             });
           }
-          return {
-            label: metadata.label,
-            relationships: metadata.relationships
-          };
         } else {
-          context.log.warn(`No label field found in IPFS metadata`, { cid, endpoint: endpoint.url });
-          return null;
+          // Check if we should retry indefinitely
+          if (shouldRetryIndefinitely(response)) {
+            context.log.warn(`${dataType} fetch failed with retriable error, will retry indefinitely`, {
+              cid,
+              endpoint: endpoint.url,
+              status: response.status,
+              statusText: response.statusText,
+              attempt: totalAttempts
+            });
+          } else {
+            context.log.warn(`${dataType} fetch failed with non-retriable error`, {
+              cid,
+              endpoint: endpoint.url,
+              status: response.status,
+              statusText: response.statusText,
+              attempt: totalAttempts
+            });
+          }
         }
-      } else {
-        // Check if we should retry this error
-        if (shouldRetry(response) && attempt < maxAttempts - 1) {
-          context.log.warn(`IPFS gateway error (attempt ${attempt + 1}/${maxAttempts}), retrying...`, {
-            cid,
-            endpoint: endpoint.url,
-            status: response.status,
-            statusText: response.statusText
-          });
-          await waitWithBackoff(attempt);
-          continue;
-        } else {
-          context.log.warn(`IPFS gateway returned error`, {
-            cid,
-            endpoint: endpoint.url,
-            status: response.status,
-            statusText: response.statusText,
-            finalAttempt: true
-          });
-          return null;
-        }
-      }
-    } catch (e) {
-      const error = e as Error;
-      lastError = error;
+      } catch (e) {
+        const error = e as Error;
 
-      // Check if we should retry this error
-      if (shouldRetry(undefined, error) && attempt < maxAttempts - 1) {
-        context.log.warn(`IPFS fetch failed (attempt ${attempt + 1}/${maxAttempts}), retrying...`, {
-          cid,
-          endpoint: endpoint.url,
-          error: error.message,
-          errorName: error.name,
-          errorCause: error.cause
-        });
-        await waitWithBackoff(attempt);
-        continue;
-      } else {
-        context.log.warn(`IPFS fetch failed`, {
-          cid,
-          endpoint: endpoint.url,
-          error: error.message,
-          errorName: error.name,
-          errorStack: error.stack,
-          errorCause: error.cause,
-          finalAttempt: true
-        });
-        return null;
+        if (shouldRetryIndefinitely(undefined, error)) {
+          context.log.warn(`${dataType} fetch failed with retriable connection error, will retry indefinitely`, {
+            cid,
+            endpoint: endpoint.url,
+            error: error.message,
+            errorName: error.name,
+            attempt: totalAttempts
+          });
+        } else {
+          context.log.warn(`${dataType} fetch failed with non-retriable error`, {
+            cid,
+            endpoint: endpoint.url,
+            error: error.message,
+            errorName: error.name,
+            attempt: totalAttempts
+          });
+        }
       }
+
+      // No delay between gateways - try them as fast as possible
     }
+
+    // After trying all endpoints, wait a short time before starting another full cycle
+    context.log.info(`Completed full gateway cycle (${totalAttempts} attempts), waiting before retry`, {
+      cid,
+      dataType,
+      totalAttempts
+    });
+    await new Promise(resolve => setTimeout(resolve, 1500)); // 1.5 second delay between full cycles
   }
-
-  return null;
 }
 
-// Legacy function for backward compatibility
-async function fetchFromEndpoint(
+// Helper function specifically for IPFS metadata with infinite retry
+async function fetchIpfsMetadataWithInfiniteRetry(
     context: EffectContext,
-    endpoint: { url: string; token: string | null },
     cid: string
-): Promise<IpfsMetadata | null> {
-  return fetchFromEndpointWithRetry(context, endpoint, cid, 3);
+): Promise<IpfsMetadata> {
+  return fetchDataWithInfiniteRetry(
+      context,
+      cid,
+      "IPFS metadata",
+      (data) => data && typeof data === 'object' && data.label && typeof data.label === 'string',
+      (data) => ({
+        label: data.label,
+        relationships: data.relationships
+      })
+  );
 }
 
-// Generic retry function for IPFS data fetching
-async function fetchDataWithRetry<T>(
+// DEPRECATED: This function has been replaced by fetchDataWithInfiniteRetry
+// Keeping only for getRelationshipData which needs limited retries
+async function fetchDataWithLimitedRetry<T>(
     context: EffectContext,
     cid: string,
     dataType: string,
@@ -255,7 +302,6 @@ async function fetchDataWithRetry<T>(
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
         const fullUrl = buildGatewayUrl(endpoint.url, cid, endpoint.token);
-
         const response = await fetch(fullUrl);
 
         if (response.ok) {
@@ -270,48 +316,30 @@ async function fetchDataWithRetry<T>(
             return transformer(data);
           }
         } else {
-          // Check if we should retry this error
-          if (shouldRetry(response) && attempt < maxAttempts - 1) {
-            context.log.warn(`${dataType} fetch error (attempt ${attempt + 1}/${maxAttempts}), retrying...`, {
-              cid,
-              endpoint: endpoint.url,
-              status: response.status,
-              statusText: response.statusText
-            });
-            await waitWithBackoff(attempt);
-            continue;
-          } else {
-            context.log.warn(`${dataType} fetch failed - HTTP error`, {
-              cid,
-              endpoint: endpoint.url,
-              status: response.status,
-              statusText: response.statusText,
-              finalAttempt: attempt === maxAttempts - 1
-            });
-          }
+          context.log.warn(`${dataType} fetch failed - HTTP error`, {
+            cid,
+            endpoint: endpoint.url,
+            status: response.status,
+            statusText: response.statusText,
+            attempt: attempt + 1,
+            maxAttempts
+          });
         }
       } catch (e) {
         const error = e as Error;
+        context.log.warn(`Failed to fetch ${dataType}`, {
+          cid,
+          endpoint: endpoint.url,
+          error: error.message,
+          errorName: error.name,
+          attempt: attempt + 1,
+          maxAttempts
+        });
+      }
 
-        // Check if we should retry this error
-        if (shouldRetry(undefined, error) && attempt < maxAttempts - 1) {
-          context.log.warn(`${dataType} fetch failed (attempt ${attempt + 1}/${maxAttempts}), retrying...`, {
-            cid,
-            endpoint: endpoint.url,
-            error: error.message,
-            errorName: error.name
-          });
-          await waitWithBackoff(attempt);
-          continue;
-        } else {
-          context.log.warn(`Failed to fetch ${dataType}`, {
-            cid,
-            endpoint: endpoint.url,
-            error: error.message,
-            errorName: error.name,
-            finalAttempt: attempt === maxAttempts - 1
-          });
-        }
+      // Wait before retry (except on last attempt)
+      if (attempt < maxAttempts - 1) {
+        await waitWithBackoff(attempt);
       }
     }
 
@@ -334,13 +362,13 @@ export const getRelationshipData = experimental_createEffect(
       cache: true,
     },
     async ({ input: cid, context }) => {
-      return fetchDataWithRetry(
-        context,
-        cid,
-        "relationship data",
-        (data) => data && data.to && data.to["/"],
-        (data) => data,
-        3
+      return fetchDataWithLimitedRetry(
+          context,
+          cid,
+          "relationship data",
+          (data: any) => data && data.to && data.to["/"],
+          (data: any) => data,
+          3
       );
     }
 );
@@ -430,7 +458,7 @@ export const getStructureData = experimental_createEffect(
             error: error.message,
             errorName: error.name,
             errorStack: error.stack,
-            errorCause: error.cause
+            errorCause: (error as any).cause
           });
         }
 
@@ -506,7 +534,7 @@ export const getAddressData = experimental_createEffect(
             error: error.message,
             errorName: error.name,
             errorStack: error.stack,
-            errorCause: error.cause
+            errorCause: (error as any).cause
           });
         }
 
@@ -574,7 +602,7 @@ export const getPropertyData = experimental_createEffect(
             error: error.message,
             errorName: error.name,
             errorStack: error.stack,
-            errorCause: error.cause
+            errorCause: (error as any).cause
           });
         }
 
@@ -638,7 +666,7 @@ export const getIpfsFactSheetData = experimental_createEffect(
             error: error.message,
             errorName: error.name,
             errorStack: error.stack,
-            errorCause: error.cause
+            errorCause: (error as any).cause
           });
         }
 
@@ -661,32 +689,7 @@ export const getIpfsMetadata = experimental_createEffect(
       cache: true, // Enable caching for better performance
     },
     async ({ input: cid, context }) => {
-      for (let i = 0; i < endpoints.length; i++) {
-        const endpoint = endpoints[i];
-
-        // Try each endpoint with retries
-        for (let retry = 0; retry < RATE_LIMIT_CONFIG.maxRetries; retry++) {
-          const metadata = await fetchFromEndpoint(context, endpoint, cid);
-          if (metadata) {
-            return metadata;
-          }
-
-          // Delay before retry (except on last retry of last endpoint)
-          if (retry < RATE_LIMIT_CONFIG.maxRetries - 1) {
-            const delay = RATE_LIMIT_CONFIG.delayOnError;
-            await new Promise(resolve => setTimeout(resolve, delay));
-          }
-        }
-
-        // Delay between endpoints (except for last endpoint)
-        if (i < endpoints.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_CONFIG.delayBetweenEndpoints));
-        }
-      }
-
-      // All endpoints failed - throw error to prevent corrupted data
-      context.log.error("Unable to fetch IPFS metadata from all gateways", { cid });
-      throw new Error(`Failed to fetch IPFS content for CID: ${cid}`);
+      return fetchIpfsMetadataWithInfiniteRetry(context, cid);
     }
 );
 
@@ -741,7 +744,7 @@ export const getLotData = experimental_createEffect(
             cid,
             endpoint: endpoint.url,
             error: error.message,
-            errorCause: error.cause
+            errorCause: (error as any).cause
           });
         }
 
@@ -796,7 +799,7 @@ export const getSalesHistoryData = experimental_createEffect(
             cid,
             endpoint: endpoint.url,
             error: error.message,
-            errorCause: error.cause
+            errorCause: (error as any).cause
           });
         }
 
@@ -860,7 +863,7 @@ export const getTaxData = experimental_createEffect(
             cid,
             endpoint: endpoint.url,
             error: error.message,
-            errorCause: error.cause
+            errorCause: (error as any).cause
           });
         }
 
@@ -931,7 +934,7 @@ export const getUtilityData = experimental_createEffect(
             cid,
             endpoint: endpoint.url,
             error: error.message,
-            errorCause: error.cause
+            errorCause: (error as any).cause
           });
         }
 
@@ -991,7 +994,7 @@ export const getFloodStormData = experimental_createEffect(
             cid,
             endpoint: endpoint.url,
             error: error.message,
-            errorCause: error.cause
+            errorCause: (error as any).cause
           });
         }
 
@@ -1051,7 +1054,7 @@ export const getPersonData = experimental_createEffect(
             cid,
             endpoint: endpoint.url,
             error: error.message,
-            errorCause: error.cause
+            errorCause: (error as any).cause
           });
         }
 
@@ -1104,7 +1107,7 @@ export const getCompanyData = experimental_createEffect(
             cid,
             endpoint: endpoint.url,
             error: error.message,
-            errorCause: error.cause
+            errorCause: (error as any).cause
           });
         }
 
@@ -1188,7 +1191,7 @@ export const getLayoutData = experimental_createEffect(
             cid,
             endpoint: endpoint.url,
             error: error.message,
-            errorCause: error.cause
+            errorCause: (error as any).cause
           });
         }
 
@@ -1245,7 +1248,7 @@ export const getFileData = experimental_createEffect(
             cid,
             endpoint: endpoint.url,
             error: error.message,
-            errorCause: error.cause
+            errorCause: (error as any).cause
           });
         }
 
@@ -1297,7 +1300,7 @@ export const getDeedData = experimental_createEffect(
             cid,
             endpoint: endpoint.url,
             error: error.message,
-            errorCause: error.cause
+            errorCause: (error as any).cause
           });
         }
 
