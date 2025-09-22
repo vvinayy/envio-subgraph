@@ -235,10 +235,8 @@ export async function processCountyData(context: any, metadata: any, cid: string
   let lotId: string | undefined;
   let utilityId: string | undefined;
   let parcelIdentifier: string | undefined;
-  let salesHistoryIds: string[] = [];
-  let salesHistoryEntities: SalesHistory[] = [];
-  let taxIds: string[] = [];
-  let taxEntities: Tax[] = [];
+  const salesHistoryEntities: SalesHistory[] = [];
+  const taxEntities: Tax[] = [];
 
   // First fetch relationships to get CIDs
   const relationshipPromises = [];
@@ -432,10 +430,6 @@ export async function processCountyData(context: any, metadata: any, cid: string
       const structureEntity = createStructureEntity(result.cid, result.data);
       context.Structure.set(structureEntity);
 
-      context.log.info(`Updated Structure entity`, {
-        structureId,
-        roof_date: result.data.roof_date
-      });
     } else if (result.type === 'property') {
       propertyDataId = result.cid;
       const propertyEntity = createPropertyEntity(result.cid, result.data);
@@ -445,80 +439,36 @@ export async function processCountyData(context: any, metadata: any, cid: string
         parcelIdentifier = result.data.parcel_identifier;
       }
 
-      context.log.info(`Updated Property entity`, {
-        propertyDataId,
-        property_type: result.data.property_type,
-        parcel_identifier: result.data.parcel_identifier
-      });
     } else if (result.type === 'address') {
       addressId = result.cid;
       const addressEntity = createAddressEntity(result.cid, result.data);
       context.Address.set(addressEntity);
 
-      context.log.info(`Updated Address entity`, {
-        addressId,
-        county_name: result.data.county_name,
-        city_name: result.data.city_name,
-        street_name: result.data.street_name,
-        street_number: result.data.street_number
-      });
     } else if (result.type === 'ipfs') {
       ipfsId = result.cid;
       const ipfsEntity = createIpfsEntity(result.cid, result.data);
       context.Ipfs.set(ipfsEntity);
 
-      context.log.info(`Updated IPFS entity`, {
-        ipfsId: result.cid,
-        ipfs_url: result.data.ipfs_url
-      });
     } else if (result.type === 'lot') {
       lotId = result.cid;
       const lotEntity = createLotEntity(result.cid, result.data);
       context.Lot.set(lotEntity);
 
-      context.log.info(`Updated Lot entity`, {
-        lotId: result.cid,
-        lot_type: result.data.lot_type,
-        lot_area_sqft: result.data.lot_area_sqft
-      });
     } else if (result.type === 'sales_history') {
       const salesHistoryEntity = createSalesHistoryEntity(result.cid, result.data, propertyEntityId);
       context.SalesHistory.set(salesHistoryEntity);
       salesHistoryEntities.push(salesHistoryEntity);
-      salesHistoryIds.push(result.cid);
 
-      context.log.info(`Created SalesHistory entity`, {
-        salesHistoryId: result.cid,
-        ownership_transfer_date: result.data.ownership_transfer_date,
-        purchase_price_amount: result.data.purchase_price_amount,
-        sale_type: result.data.sale_type,
-        property_id: propertyEntityId
-      });
     } else if (result.type === 'tax') {
       const taxEntity = createTaxEntity(result.cid, result.data, propertyEntityId);
       context.Tax.set(taxEntity);
       taxEntities.push(taxEntity);
-      taxIds.push(result.cid);
 
-      context.log.info(`Created Tax entity`, {
-        taxId: result.cid,
-        tax_year: result.data.tax_year,
-        property_assessed_value_amount: result.data.property_assessed_value_amount,
-        property_market_value_amount: result.data.property_market_value_amount,
-        property_taxable_value_amount: result.data.property_taxable_value_amount,
-        property_id: propertyEntityId
-      });
     } else if (result.type === 'utility') {
       utilityId = result.cid;
       const utilityEntity = createUtilityEntity(result.cid, result.data);
       context.Utility.set(utilityEntity);
 
-      context.log.info(`Updated Utility entity`, {
-        utilityId: result.cid,
-        cooling_system_type: result.data.cooling_system_type,
-        heating_system_type: result.data.heating_system_type,
-        public_utility_type: result.data.public_utility_type
-      });
     }
   }
 

@@ -40,10 +40,7 @@ ERC1967Proxy.DataGroupConsensusUpdated.handler(async ({ event, context }) => {
 
 ERC1967Proxy.DataGroupHeartBeat.handler(async ({ event, context }) => {
   if (!allowedSubmitters.includes(event.params.submitter)) {
-    context.log.info(`Skipping HeartBeat event - only processing events from specific submitters`, {
-      submitter: event.params.submitter,
-      propertyHash: event.params.propertyHash
-    });
+    // Skipping HeartBeat event - only processing events from specific submitters
     return;
   }
 
@@ -109,19 +106,8 @@ ERC1967Proxy.DataGroupHeartBeat.handler(async ({ event, context }) => {
         }
       }
 
-      context.log.info(`Processed sales history from HeartBeat`, {
-        propertyHash: event.params.propertyHash,
-        salesHistoryCount: result.salesHistoryEntities.length,
-        taxCount: result.taxEntities.length,
-        mainEntityId,
-        parcelIdentifier
-      });
     } else if (metadata.label === "Seed") {
       // Skip Seed processing - only process County labels
-      context.log.info(`Skipping Seed label processing from HeartBeat`, {
-        propertyHash: event.params.propertyHash,
-        label: metadata.label
-      });
       return;
     }
 
@@ -176,10 +162,7 @@ ERC1967Proxy.DataGroupHeartBeat.handler(async ({ event, context }) => {
 
 ERC1967Proxy.DataSubmitted.handler(async ({ event, context }) => {
   if (!allowedSubmitters.includes(event.params.submitter)) {
-    context.log.info(`Skipping DataSubmitted event - only processing events from specific submitters`, {
-      submitter: event.params.submitter,
-      propertyHash: event.params.propertyHash
-    });
+    // Skipping HeartBeat event - only processing events from specific submitters
     return;
   }
 
@@ -245,19 +228,8 @@ ERC1967Proxy.DataSubmitted.handler(async ({ event, context }) => {
         }
       }
 
-      context.log.info(`Processed sales history from DataSubmitted`, {
-        propertyHash: event.params.propertyHash,
-        salesHistoryCount: result.salesHistoryEntities.length,
-        taxCount: result.taxEntities.length,
-        mainEntityId,
-        parcelIdentifier
-      });
     } else if (metadata.label === "Seed") {
       // Skip Seed processing - only process County labels
-      context.log.info(`Skipping Seed label processing`, {
-        propertyHash: event.params.propertyHash,
-        label: metadata.label
-      });
       return;
     }
 

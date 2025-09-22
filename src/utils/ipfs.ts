@@ -80,10 +80,9 @@ const endpoints = [
   { url: "https://indexing-node-envio.mypinata.cloud/ipfs", token: "iYp6WBHfIL-yzshn3WnFyCJRmIH3iBqwcD9Jou-pgTmtr20GXaDWXxqTg9zOP6dk" },
   { url: "https://indexing-node-envio-2.mypinata.cloud/ipfs", token: "OdQztc-h-6PjCKKJnUvYpjjw_m8n4KsRBMRWOGtyipd-KVRG7rTiC2D5bKKBDA2B" },
   { url: "https://moral-aqua-catfish.myfilebase.com/ipfs", token: null },
-  { url: "https://ipfs.io/ipfs", token: null },
   { url: "https://bronze-blank-cod-736.mypinata.cloud/ipfs", token: "0EicEGVVMxNrYgog3s1-Aud_3v32eSvF9nYypTkQ4Qy-G4M8N-zdBvL1DNYjlupe" },
-  { url: "https://ipfs.io/ipfs", token: null },
   { url: "https://indexing2.myfilebase.com/ipfs", token: null },
+  { url: "https://ipfs.io/ipfs", token: null },
   { url: "https://gateway.ipfs.io/ipfs", token: null },
   { url: "https://dweb.link/ipfs", token: null },
   { url: "https://w3s.link/ipfs", token: null },
@@ -106,7 +105,6 @@ async function fetchFromEndpoint(
 ): Promise<IpfsMetadata | null> {
   try {
     const fullUrl = buildGatewayUrl(endpoint.url, cid, endpoint.token);
-    context.log.info(`Fetching IPFS content from gateway`, { cid, endpoint: endpoint.url });
 
     const response = await fetch(fullUrl);
 
@@ -115,7 +113,6 @@ async function fetchFromEndpoint(
 
       // Extract label from metadata
       if (metadata && typeof metadata === 'object' && metadata.label && typeof metadata.label === 'string') {
-        context.log.info(`Successfully fetched IPFS metadata`, { cid, label: metadata.label });
         return {
           label: metadata.label,
           relationships: metadata.relationships
@@ -165,13 +162,11 @@ export const getRelationshipData = experimental_createEffect(
 
         try {
           const fullUrl = buildGatewayUrl(endpoint.url, cid, endpoint.token);
-          context.log.info(`Fetching relationship data from gateway`, { cid, endpoint: endpoint.url });
 
           const response = await fetch(fullUrl);
           if (response.ok) {
             const data: any = await response.json();
             if (data && data.to && data.to["/"]) {
-              context.log.info(`Successfully fetched relationship data`, { cid });
               return data;
             }
           } else {
@@ -219,13 +214,11 @@ export const getStructureData = experimental_createEffect(
 
         try {
           const fullUrl = buildGatewayUrl(endpoint.url, cid, endpoint.token);
-          context.log.info(`Fetching structure data from gateway`, { cid, endpoint: endpoint.url });
 
           const response = await fetch(fullUrl);
           if (response.ok) {
             const data: any = await response.json();
             if (data && typeof data === 'object') {
-              context.log.info(`Successfully fetched structure data`, { cid, roof_date: data.roof_date });
               return {
                 // Original field
                 roof_date: data.roof_date || undefined,
@@ -321,16 +314,11 @@ export const getAddressData = experimental_createEffect(
 
         try {
           const fullUrl = buildGatewayUrl(endpoint.url, cid, endpoint.token);
-          context.log.info(`Fetching address data from gateway`, { cid, endpoint: endpoint.url });
 
           const response = await fetch(fullUrl);
           if (response.ok) {
             const data: any = await response.json();
             if (data && typeof data === 'object') {
-              context.log.info(`Successfully fetched address data`, {
-                cid,
-                county_name: data.county_name
-              });
 
               return {
                 request_identifier: data.request_identifier || undefined,
@@ -402,18 +390,11 @@ export const getPropertyData = experimental_createEffect(
 
         try {
           const fullUrl = buildGatewayUrl(endpoint.url, cid, endpoint.token);
-          context.log.info(`Fetching property data from gateway`, { cid, endpoint: endpoint.url });
 
           const response = await fetch(fullUrl);
           if (response.ok) {
             const data: any = await response.json();
             if (data && typeof data === 'object') {
-              context.log.info(`Successfully fetched property data`, {
-                cid,
-                property_type: data.property_type,
-                property_structure_built_year: data.property_structure_built_year,
-                property_effective_built_year: data.property_effective_built_year
-              });
 
               return {
                 property_type: data.property_type || undefined,
@@ -465,9 +446,9 @@ export const getPropertyData = experimental_createEffect(
 
 // Rate limiting configuration
 const RATE_LIMIT_CONFIG = {
-  delayBetweenEndpoints: 2000, // 2 seconds between trying different gateways
-  delayOn429: 10000, // 10 seconds when rate limited
-  delayOnError: 10000, // 10 seconds on other errors
+  delayBetweenEndpoints: 500, // 0.5 seconds between trying different gateways
+  delayOn429: 500, // 10 seconds when rate limited
+  delayOnError: 500, // 10 seconds on other errors
   maxRetries: 1, // Max retries per endpoint (reduced to avoid too many failures)
 };
 
@@ -485,16 +466,11 @@ export const getIpfsFactSheetData = experimental_createEffect(
 
         try {
           const fullUrl = buildGatewayUrl(endpoint.url, cid, endpoint.token);
-          context.log.info(`Fetching fact sheet data from gateway`, { cid, endpoint: endpoint.url });
 
           const response = await fetch(fullUrl);
           if (response.ok) {
             const data: any = await response.json();
             if (data && typeof data === 'object') {
-              context.log.info(`Successfully fetched fact sheet data`, {
-                cid,
-                ipfs_url: data.ipfs_url
-              });
 
               return {
                 ipfs_url: data.ipfs_url || undefined,
@@ -553,14 +529,12 @@ export const getIpfsMetadata = experimental_createEffect(
           // Delay before retry (except on last retry of last endpoint)
           if (retry < RATE_LIMIT_CONFIG.maxRetries - 1) {
             const delay = RATE_LIMIT_CONFIG.delayOnError;
-            context.log.info(`Retrying endpoint in ${delay}ms`, { endpoint, retry: retry + 1 });
             await new Promise(resolve => setTimeout(resolve, delay));
           }
         }
 
         // Delay between endpoints (except for last endpoint)
         if (i < endpoints.length - 1) {
-          context.log.info(`Trying next endpoint in ${RATE_LIMIT_CONFIG.delayBetweenEndpoints}ms`);
           await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_CONFIG.delayBetweenEndpoints));
         }
       }
@@ -585,17 +559,11 @@ export const getLotData = experimental_createEffect(
 
         try {
           const fullUrl = buildGatewayUrl(endpoint.url, cid, endpoint.token);
-          context.log.info(`Fetching lot data from gateway`, { cid, endpoint: endpoint.url });
 
           const response = await fetch(fullUrl);
           if (response.ok) {
             const data: any = await response.json();
             if (data && typeof data === 'object') {
-              context.log.info(`Successfully fetched lot data`, {
-                cid,
-                lot_type: data.lot_type,
-                lot_area_sqft: data.lot_area_sqft
-              });
 
               return {
                 driveway_condition: data.driveway_condition || undefined,
@@ -656,18 +624,11 @@ export const getSalesHistoryData = experimental_createEffect(
 
         try {
           const fullUrl = buildGatewayUrl(endpoint.url, cid, endpoint.token);
-          context.log.info(`Fetching sales history data from gateway`, { cid, endpoint: endpoint.url });
 
           const response = await fetch(fullUrl);
           if (response.ok) {
             const data: any = await response.json();
             if (data && typeof data === 'object') {
-              context.log.info(`Successfully fetched sales history data`, {
-                cid,
-                ownership_transfer_date: data.ownership_transfer_date,
-                purchase_price_amount: data.purchase_price_amount,
-                sale_type: data.sale_type
-              });
 
               return {
                 ownership_transfer_date: data.ownership_transfer_date || undefined,
@@ -718,19 +679,11 @@ export const getTaxData = experimental_createEffect(
 
         try {
           const fullUrl = buildGatewayUrl(endpoint.url, cid, endpoint.token);
-          context.log.info(`Fetching tax data from gateway`, { cid, endpoint: endpoint.url });
 
           const response = await fetch(fullUrl);
           if (response.ok) {
             const data: any = await response.json();
             if (data && typeof data === 'object') {
-              context.log.info(`Successfully fetched tax data`, {
-                cid,
-                tax_year: data.tax_year,
-                property_assessed_value_amount: data.property_assessed_value_amount,
-                property_market_value_amount: data.property_market_value_amount,
-                property_taxable_value_amount: data.property_taxable_value_amount
-              });
 
               return {
                 first_year_building_on_tax_roll: data.first_year_building_on_tax_roll || undefined,
@@ -790,18 +743,11 @@ export const getUtilityData = experimental_createEffect(
 
         try {
           const fullUrl = buildGatewayUrl(endpoint.url, cid, endpoint.token);
-          context.log.info(`Fetching utility data from gateway`, { cid, endpoint: endpoint.url });
 
           const response = await fetch(fullUrl);
           if (response.ok) {
             const data: any = await response.json();
             if (data && typeof data === 'object') {
-              context.log.info(`Successfully fetched utility data`, {
-                cid,
-                cooling_system_type: data.cooling_system_type,
-                heating_system_type: data.heating_system_type,
-                public_utility_type: data.public_utility_type
-              });
 
               return {
                 cooling_system_type: data.cooling_system_type || undefined,
