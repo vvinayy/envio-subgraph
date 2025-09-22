@@ -90,6 +90,7 @@ const endpoints = [
   // Multiple public gateways for reliability
   { url: "https://sapphire-academic-leech-250.mypinata.cloud/ipfs", token: "CcV1DorYnAo9eZr_P4DXg8TY4SB-QuUw_b6C70JFs2M8aY0fJudBnle2mUyCYyTu" },
   { url: "https://indexing-node-envio.mypinata.cloud/ipfs", token: "iYp6WBHfIL-yzshn3WnFyCJRmIH3iBqwcD9Jou-pgTmtr20GXaDWXxqTg9zOP6dk" },
+  { url: "https://dry-fuchsia-ox.myfilebase.com/ipfs/", token: null },
   { url: "https://indexing-node-envio-2.mypinata.cloud/ipfs", token: "OdQztc-h-6PjCKKJnUvYpjjw_m8n4KsRBMRWOGtyipd-KVRG7rTiC2D5bKKBDA2B" },
   { url: "https://indexing-node-envio-3.mypinata.cloud/ipfs", token: "cSEbVBstzkkTTco4oO-iBbuhX_sahOth00XH2rpE7E30IuwnE6A7gdxSa_ZSfWs6" },
   { url: "https://indexing-node-envio-4.mypinata.cloud/ipfs", token: "BZA3Pmr1XNG7HqS49-owAGq0UcHxEmSBBK58-VTN4XeY3cP0DeUFXdhuo6z8sFfk" },
@@ -118,54 +119,210 @@ function buildGatewayUrl(baseUrl: string, cid: string, token: string | null): st
   return url;
 }
 
+// Helper function to check if error should trigger retry
+function shouldRetry(response?: Response, error?: Error): boolean {
+  // Retry on timeout errors
+  if (error?.name === 'ConnectTimeoutError' || error?.message?.includes('timeout')) {
+    return true;
+  }
+
+  // Retry on specific HTTP status codes
+  if (response) {
+    return response.status === 502 || response.status === 504 || response.status === 429;
+  }
+
+  return false;
+}
+
+// Helper function to wait with exponential backoff
+async function waitWithBackoff(attempt: number): Promise<void> {
+  const baseDelay = 1000; // 1 second
+  const delay = baseDelay * Math.pow(2, attempt); // Exponential backoff
+  await new Promise(resolve => setTimeout(resolve, delay));
+}
+
+async function fetchFromEndpointWithRetry(
+    context: EffectContext,
+    endpoint: { url: string; token: string | null },
+    cid: string,
+    maxAttempts: number = 3
+): Promise<IpfsMetadata | null> {
+  let lastError: Error | null = null;
+  let lastResponse: Response | null = null;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      const fullUrl = buildGatewayUrl(endpoint.url, cid, endpoint.token);
+
+      const response = await fetch(fullUrl);
+      lastResponse = response;
+
+      if (response.ok) {
+        const metadata: any = await response.json();
+
+        // Extract label from metadata
+        if (metadata && typeof metadata === 'object' && metadata.label && typeof metadata.label === 'string') {
+          if (attempt > 0) {
+            context.log.info(`IPFS fetch succeeded on attempt ${attempt + 1}`, {
+              cid,
+              endpoint: endpoint.url
+            });
+          }
+          return {
+            label: metadata.label,
+            relationships: metadata.relationships
+          };
+        } else {
+          context.log.warn(`No label field found in IPFS metadata`, { cid, endpoint: endpoint.url });
+          return null;
+        }
+      } else {
+        // Check if we should retry this error
+        if (shouldRetry(response) && attempt < maxAttempts - 1) {
+          context.log.warn(`IPFS gateway error (attempt ${attempt + 1}/${maxAttempts}), retrying...`, {
+            cid,
+            endpoint: endpoint.url,
+            status: response.status,
+            statusText: response.statusText
+          });
+          await waitWithBackoff(attempt);
+          continue;
+        } else {
+          context.log.warn(`IPFS gateway returned error`, {
+            cid,
+            endpoint: endpoint.url,
+            status: response.status,
+            statusText: response.statusText,
+            finalAttempt: true
+          });
+          return null;
+        }
+      }
+    } catch (e) {
+      const error = e as Error;
+      lastError = error;
+
+      // Check if we should retry this error
+      if (shouldRetry(undefined, error) && attempt < maxAttempts - 1) {
+        context.log.warn(`IPFS fetch failed (attempt ${attempt + 1}/${maxAttempts}), retrying...`, {
+          cid,
+          endpoint: endpoint.url,
+          error: error.message,
+          errorName: error.name,
+          errorCause: error.cause
+        });
+        await waitWithBackoff(attempt);
+        continue;
+      } else {
+        context.log.warn(`IPFS fetch failed`, {
+          cid,
+          endpoint: endpoint.url,
+          error: error.message,
+          errorName: error.name,
+          errorStack: error.stack,
+          errorCause: error.cause,
+          finalAttempt: true
+        });
+        return null;
+      }
+    }
+  }
+
+  return null;
+}
+
+// Legacy function for backward compatibility
 async function fetchFromEndpoint(
     context: EffectContext,
     endpoint: { url: string; token: string | null },
     cid: string
 ): Promise<IpfsMetadata | null> {
-  try {
-    const fullUrl = buildGatewayUrl(endpoint.url, cid, endpoint.token);
+  return fetchFromEndpointWithRetry(context, endpoint, cid, 3);
+}
 
-    const response = await fetch(fullUrl);
+// Generic retry function for IPFS data fetching
+async function fetchDataWithRetry<T>(
+    context: EffectContext,
+    cid: string,
+    dataType: string,
+    validator: (data: any) => boolean,
+    transformer: (data: any) => T,
+    maxAttempts: number = 3
+): Promise<T> {
+  for (let i = 0; i < endpoints.length; i++) {
+    const endpoint = endpoints[i];
 
-    if (response.ok) {
-      const metadata: any = await response.json();
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        const fullUrl = buildGatewayUrl(endpoint.url, cid, endpoint.token);
 
-      // Extract label from metadata
-      if (metadata && typeof metadata === 'object' && metadata.label && typeof metadata.label === 'string') {
-        return {
-          label: metadata.label,
-          relationships: metadata.relationships
-        };
-      } else {
-        context.log.warn(`No label field found in IPFS metadata`, { cid, endpoint: endpoint.url });
-        return null;
+        const response = await fetch(fullUrl);
+
+        if (response.ok) {
+          const data: any = await response.json();
+          if (validator(data)) {
+            if (attempt > 0) {
+              context.log.info(`${dataType} fetch succeeded on attempt ${attempt + 1}`, {
+                cid,
+                endpoint: endpoint.url
+              });
+            }
+            return transformer(data);
+          }
+        } else {
+          // Check if we should retry this error
+          if (shouldRetry(response) && attempt < maxAttempts - 1) {
+            context.log.warn(`${dataType} fetch error (attempt ${attempt + 1}/${maxAttempts}), retrying...`, {
+              cid,
+              endpoint: endpoint.url,
+              status: response.status,
+              statusText: response.statusText
+            });
+            await waitWithBackoff(attempt);
+            continue;
+          } else {
+            context.log.warn(`${dataType} fetch failed - HTTP error`, {
+              cid,
+              endpoint: endpoint.url,
+              status: response.status,
+              statusText: response.statusText,
+              finalAttempt: attempt === maxAttempts - 1
+            });
+          }
+        }
+      } catch (e) {
+        const error = e as Error;
+
+        // Check if we should retry this error
+        if (shouldRetry(undefined, error) && attempt < maxAttempts - 1) {
+          context.log.warn(`${dataType} fetch failed (attempt ${attempt + 1}/${maxAttempts}), retrying...`, {
+            cid,
+            endpoint: endpoint.url,
+            error: error.message,
+            errorName: error.name
+          });
+          await waitWithBackoff(attempt);
+          continue;
+        } else {
+          context.log.warn(`Failed to fetch ${dataType}`, {
+            cid,
+            endpoint: endpoint.url,
+            error: error.message,
+            errorName: error.name,
+            finalAttempt: attempt === maxAttempts - 1
+          });
+        }
       }
-    } else {
-      if (response.status === 429) {
-        context.log.warn(`Rate limited by IPFS gateway`, { cid, endpoint: endpoint.url });
-      } else {
-        context.log.warn(`IPFS gateway returned error`, {
-          cid,
-          endpoint: endpoint.url,
-          status: response.status,
-          statusText: response.statusText
-        });
-      }
-      return null;
     }
-  } catch (e) {
-    const error = e as Error;
-    context.log.warn(`IPFS fetch failed`, {
-      cid,
-      endpoint: endpoint.url,
-      error: error.message,
-      errorName: error.name,
-      errorStack: error.stack,
-      errorCause: error.cause
-    });
-    return null;
+
+    // Delay between endpoints
+    if (i < endpoints.length - 1) {
+      await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_CONFIG.delayBetweenEndpoints));
+    }
   }
+
+  context.log.error(`Unable to fetch ${dataType} from all gateways`, { cid });
+  throw new Error(`Failed to fetch ${dataType} for CID: ${cid}`);
 }
 
 // Fetch relationship data (from/to structure)
@@ -177,46 +334,14 @@ export const getRelationshipData = experimental_createEffect(
       cache: true,
     },
     async ({ input: cid, context }) => {
-      for (let i = 0; i < endpoints.length; i++) {
-        const endpoint = endpoints[i];
-
-        try {
-          const fullUrl = buildGatewayUrl(endpoint.url, cid, endpoint.token);
-
-          const response = await fetch(fullUrl);
-          if (response.ok) {
-            const data: any = await response.json();
-            if (data && data.to && data.to["/"]) {
-              return data;
-            }
-          } else {
-            context.log.warn(`Relationship data fetch failed - HTTP error`, {
-              cid,
-              endpoint: endpoint.url,
-              status: response.status,
-              statusText: response.statusText
-            });
-          }
-        } catch (e) {
-          const error = e as Error;
-          context.log.warn(`Failed to fetch relationship data`, {
-            cid,
-            endpoint: endpoint.url,
-            error: error.message,
-            errorName: error.name,
-            errorStack: error.stack,
-            errorCause: error.cause
-          });
-        }
-
-        // Delay between endpoints
-        if (i < endpoints.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_CONFIG.delayBetweenEndpoints));
-        }
-      }
-
-      context.log.error("Unable to fetch relationship data from all gateways", { cid });
-      throw new Error(`Failed to fetch relationship data for CID: ${cid}`);
+      return fetchDataWithRetry(
+        context,
+        cid,
+        "relationship data",
+        (data) => data && data.to && data.to["/"],
+        (data) => data,
+        3
+      );
     }
 );
 
