@@ -8,8 +8,14 @@ import {
   SalesHistory,
   Tax,
   Utility,
+  FloodStormInformation,
+  Person,
+  Company,
+  Layout,
+  File,
+  Deed,
 } from "generated";
-import { bytes32ToCID, getIpfsMetadata, getRelationshipData, getStructureData, getAddressData, getPropertyData, getIpfsFactSheetData, getLotData, getSalesHistoryData, getTaxData, getUtilityData } from "./ipfs";
+import { bytes32ToCID, getIpfsMetadata, getRelationshipData, getStructureData, getAddressData, getPropertyData, getIpfsFactSheetData, getLotData, getSalesHistoryData, getTaxData, getUtilityData, getFloodStormData, getPersonData, getCompanyData, getDeedData,getFileData,getLayoutData } from "./ipfs";
 
 // Function to get all wallet addresses from environment variables
 export function getAllowedSubmitters(): string[] {
@@ -225,6 +231,104 @@ export function createUtilityEntity(utilityId: string, utilityData: any): Utilit
   };
 }
 
+// Helper to create FloodStormInformation entity
+export function createFloodStormEntity(floodStormId: string, floodStormData: any): FloodStormInformation {
+  return {
+    id: floodStormId,
+    community_id: floodStormData.community_id || undefined,
+    effective_date: floodStormData.effective_date || undefined,
+    evacuation_zone: floodStormData.evacuation_zone || undefined,
+    fema_search_url: floodStormData.fema_search_url || undefined,
+    flood_insurance_required: floodStormData.flood_insurance_required || undefined,
+    flood_zone: floodStormData.flood_zone || undefined,
+    map_version: floodStormData.map_version || undefined,
+    panel_number: floodStormData.panel_number || undefined,
+    request_identifier: floodStormData.request_identifier || undefined
+  };
+}
+
+// Helper to create Person entity
+export function createPersonEntity(personId: string, personData: any, propertyId: string): Person {
+  return {
+    id: personId,
+    birth_date: personData.birth_date || undefined,
+    first_name: personData.first_name,
+    last_name: personData.last_name,
+    middle_name: personData.middle_name || undefined,
+    prefix_name: personData.prefix_name || undefined,
+    request_identifier: personData.request_identifier || undefined,
+    suffix_name: personData.suffix_name || undefined,
+    us_citizenship_status: personData.us_citizenship_status || undefined,
+    veteran_status: personData.veteran_status || undefined,
+    property_id: propertyId
+  };
+}
+
+// Helper to create Company entity
+export function createCompanyEntity(companyId: string, companyData: any, propertyId: string): Company {
+  return {
+    id: companyId,
+    name: companyData.name || undefined,
+    request_identifier: companyData.request_identifier || undefined,
+    property_id: propertyId
+  };
+}
+
+//Helper to create Layout entity
+export function createLayoutEntity(layoutId: string, layoutData: any, propertyId: string): Layout {
+  return {
+    id: layoutId,
+    cabinet_style: layoutData.cabinet_style || undefined,
+    clutter_level: layoutData.clutter_level || undefined,
+    condition_issues: layoutData.condition_issues || undefined,
+    countertop_material: layoutData.countertop_material || undefined,
+    decor_elements: layoutData.decor_elements || undefined,
+    design_style: layoutData.design_style || undefined,
+    fixture_finish_quality: layoutData.fixture_finish_quality || undefined,
+    floor_level: layoutData.floor_level || undefined,
+    flooring_material_type: layoutData.flooring_material_type || undefined,
+    flooring_wear: layoutData.flooring_wear || undefined,
+    furnished: layoutData.furnished || undefined,
+    has_windows: layoutData.has_windows || undefined,
+    is_exterior: layoutData.is_exterior !== undefined ? layoutData.is_exterior : false,
+    is_finished: layoutData.is_finished !== undefined ? layoutData.is_finished : false,
+    lighting_features: layoutData.lighting_features || undefined,
+    natural_light_quality: layoutData.natural_light_quality || undefined,
+    paint_condition: layoutData.paint_condition || undefined,
+    pool_condition: layoutData.pool_condition || undefined,
+    pool_equipment: layoutData.pool_equipment || undefined,
+    pool_surface_type: layoutData.pool_surface_type || undefined,
+    pool_type: layoutData.pool_type || undefined,
+    pool_water_quality: layoutData.pool_water_quality || undefined,
+    request_identifier: layoutData.request_identifier || undefined,
+    safety_features: layoutData.safety_features || undefined,
+    size_square_feet: layoutData.size_square_feet || undefined,
+    spa_type: layoutData.spa_type || undefined,
+    space_index: layoutData.space_index !== undefined ? layoutData.space_index : 0,
+    space_type: layoutData.space_type || undefined,
+    view_type: layoutData.view_type || undefined,
+    visible_damage: layoutData.visible_damage || undefined,
+    window_design_type: layoutData.window_design_type || undefined,
+    window_material_type: layoutData.window_material_type || undefined,
+    window_treatment_type: layoutData.window_treatment_type || undefined,
+    property_id: propertyId
+  };
+}
+
+//Helper to create File entity
+export function createFileEntity(fileId: string, fileData: any, propertyId: string): File {
+  return {
+    id: fileId,
+    document_type: fileData.document_type || undefined,
+    file_format: fileData.file_format || undefined,
+    ipfs_url: fileData.ipfs_url || undefined,
+    name: fileData.name || undefined,
+    original_url: fileData.original_url || undefined,
+    request_identifier: fileData.request_identifier || undefined,
+    property_id: propertyId
+  };
+}
+
 // Helper to process County data with full parallelism
 export async function processCountyData(context: any, metadata: any, cid: string, propertyEntityId: string) {
   // Initialize entity IDs that will be populated from IPFS data
@@ -234,9 +338,15 @@ export async function processCountyData(context: any, metadata: any, cid: string
   let ipfsId: string | undefined;
   let lotId: string | undefined;
   let utilityId: string | undefined;
+  let floodStormId: string | undefined;
   let parcelIdentifier: string | undefined;
   const salesHistoryEntities: SalesHistory[] = [];
   const taxEntities: Tax[] = [];
+  const personEntities: Person[] = [];
+  const companyEntities: Company[] = [];
+  const layoutEntities: Layout[] = [];
+  const fileEntities: File[] = [];
+  const deedEntities: Deed[] = [];
 
   // First fetch relationships to get CIDs
   const relationshipPromises = [];
@@ -245,9 +355,15 @@ export async function processCountyData(context: any, metadata: any, cid: string
   const propertyAddressCid = metadata.relationships?.property_has_address?.["/"];
   const propertyLotCid = metadata.relationships?.property_has_lot?.["/"];
   const propertyUtilityCid = metadata.relationships?.property_has_utility?.["/"];
+  const propertyFloodStormCid = metadata.relationships?.property_has_flood_storm_information?.["/"];
   const addressFactSheetCid = metadata.relationships?.address_has_fact_sheet?.[0]?.["/"];
   const salesHistoryCids = metadata.relationships?.property_has_sales_history || [];
   const taxCids = metadata.relationships?.property_has_tax || [];
+  const personCids = metadata.relationships?.person_has_property || [];
+  const companyCids = metadata.relationships?.company_has_property || [];
+  const layoutCids = metadata.relationships?.property_has_layout || [];
+  const fileCids = metadata.relationships?.property_has_file || [];
+  const deedCids = metadata.relationships?.deed_has_file || [];
 
   if (structureCid) {
     relationshipPromises.push(
@@ -278,6 +394,14 @@ export async function processCountyData(context: any, metadata: any, cid: string
       context.effect(getRelationshipData, propertyUtilityCid)
         .then((data: any) => ({ type: 'utility_rel', data, cid: propertyUtilityCid }))
         .catch((error: any) => ({ type: 'utility_rel', error, cid: propertyUtilityCid }))
+    );
+  }
+
+  if (propertyFloodStormCid) {
+    relationshipPromises.push(
+      context.effect(getRelationshipData, propertyFloodStormCid)
+        .then((data: any) => ({ type: 'flood_storm_rel', data, cid: propertyFloodStormCid }))
+        .catch((error: any) => ({ type: 'flood_storm_rel', error, cid: propertyFloodStormCid }))
     );
   }
 
@@ -313,6 +437,66 @@ export async function processCountyData(context: any, metadata: any, cid: string
     }
   }
 
+  // Add person relationship fetching
+  for (const personRef of personCids) {
+    const personRelCid = personRef?.["/"];
+    if (personRelCid) {
+      relationshipPromises.push(
+        context.effect(getRelationshipData, personRelCid)
+          .then((data: any) => ({ type: 'person_rel', data, cid: personRelCid }))
+          .catch((error: any) => ({ type: 'person_rel', error, cid: personRelCid }))
+      );
+    }
+  }
+
+  // Add company relationship fetching
+  for (const companyRef of companyCids) {
+    const companyRelCid = companyRef?.["/"];
+    if (companyRelCid) {
+      relationshipPromises.push(
+        context.effect(getRelationshipData, companyRelCid)
+          .then((data: any) => ({ type: 'company_rel', data, cid: companyRelCid }))
+          .catch((error: any) => ({ type: 'company_rel', error, cid: companyRelCid }))
+      );
+    }
+  }
+
+  // Add layout relationship fetching
+  for (const layoutRef of layoutCids) {
+    const layoutRelCid = layoutRef?.["/"];
+    if (layoutRelCid) {
+      relationshipPromises.push(
+        context.effect(getRelationshipData, layoutRelCid)
+          .then((data: any) => ({ type: 'layout_rel', data, cid: layoutRelCid }))
+          .catch((error: any) => ({ type: 'layout_rel', error, cid: layoutRelCid }))
+      );
+    }
+  }
+
+  // Add file relationship fetching
+  for (const fileRef of fileCids) {
+    const fileRelCid = fileRef?.["/"];
+    if (fileRelCid) {
+        relationshipPromises.push(
+        context.effect(getRelationshipData, fileRelCid)
+            .then((data: any) => ({ type: 'file_rel', data, cid: fileRelCid }))
+            .catch((error: any) => ({ type: 'file_rel', error, cid: fileRelCid }))
+        );
+    }
+  }
+
+  // Add deed relationship fetching
+  for (const deedRef of deedCids) {
+    const deedRelCid = deedRef?.["/"];
+    if (deedRelCid) {
+        relationshipPromises.push(
+        context.effect(getRelationshipData, deedRelCid)
+            .then((data: any) => ({ type: 'deed_rel', data, cid: deedRelCid }))
+            .catch((error: any) => ({ type: 'deed_rel', error, cid: deedRelCid }))
+        );
+    }
+  }
+
   const relationshipResults = await Promise.all(relationshipPromises);
 
   // Extract all CIDs for parallel fetching
@@ -321,6 +505,7 @@ export async function processCountyData(context: any, metadata: any, cid: string
   let propertyDataCid: string | undefined;
   let lotDataCid: string | undefined;
   let utilityDataCid: string | undefined;
+  let floodStormDataCid: string | undefined;
   let addressDataCid: string | undefined;
   let ipfsDataCid: string | undefined;
 
@@ -337,6 +522,9 @@ export async function processCountyData(context: any, metadata: any, cid: string
     } else if (relationshipResult.type === 'utility_rel' && !relationshipResult.error) {
       // From property_has_utility: get utility data (to)
       utilityDataCid = relationshipResult.data.to?.["/"];
+    } else if (relationshipResult.type === 'flood_storm_rel' && !relationshipResult.error) {
+      // From property_has_flood_storm_information: get flood storm data (to)
+      floodStormDataCid = relationshipResult.data.to?.["/"];
     } else if (relationshipResult.type === 'address_rel' && !relationshipResult.error) {
       addressDataCid = relationshipResult.data.from?.["/"];
       ipfsDataCid = relationshipResult.data.to?.["/"];
@@ -359,6 +547,55 @@ export async function processCountyData(context: any, metadata: any, cid: string
             .then((data: any) => ({ type: 'tax', data, cid: targetCid }))
             .catch((error: any) => ({ type: 'tax', error, cid: targetCid }))
         );
+      }
+    } else if (relationshipResult.type === 'person_rel' && !relationshipResult.error) {
+      // From person_has_property: get person data (from)
+      const targetCid = relationshipResult.data.from?.["/"];
+      if (targetCid) {
+        allDataPromises.push(
+          context.effect(getPersonData, targetCid)
+            .then((data: any) => ({ type: 'person', data, cid: targetCid }))
+            .catch((error: any) => ({ type: 'person', error, cid: targetCid }))
+        );
+      }
+    } else if (relationshipResult.type === 'company_rel' && !relationshipResult.error) {
+      // From company_has_property: get company data (from)
+      const targetCid = relationshipResult.data.from?.["/"];
+      if (targetCid) {
+        allDataPromises.push(
+          context.effect(getCompanyData, targetCid)
+            .then((data: any) => ({ type: 'company', data, cid: targetCid }))
+            .catch((error: any) => ({ type: 'company', error, cid: targetCid }))
+        );
+      }
+    } else if (relationshipResult.type === 'layout_rel' && !relationshipResult.error) {
+      // From property_has_layout: get layout data (to)
+      const targetCid = relationshipResult.data.to?.["/"];
+      if (targetCid) {
+          allDataPromises.push(
+          context.effect(getLayoutData, targetCid)
+              .then((data: any) => ({ type: 'layout', data, cid: targetCid }))
+              .catch((error: any) => ({ type: 'layout', error, cid: targetCid }))
+          );
+      }
+    } else if (relationshipResult.type === 'file_rel' && !relationshipResult.error) {
+      // From property_has_file: get file data (to)
+      const targetCid = relationshipResult.data.to?.["/"];
+      if (targetCid) {
+          allDataPromises.push(
+          context.effect(getFileData, targetCid)
+              .then((data: any) => ({ type: 'file', data, cid: targetCid }))
+              .catch((error: any) => ({ type: 'file', error, cid: targetCid }))
+          );
+      }
+    } else if (relationshipResult.type === 'deed_rel' && !relationshipResult.error) {
+      const targetCid = relationshipResult.data.from?.["/"];
+      if (targetCid) {
+          allDataPromises.push(
+          context.effect(getDeedData, targetCid)
+              .then((data: any) => ({ type: 'deed', data, cid: targetCid }))
+              .catch((error: any) => ({ type: 'deed', error, cid: targetCid }))
+          );
       }
     }
   }
@@ -409,6 +646,14 @@ export async function processCountyData(context: any, metadata: any, cid: string
       context.effect(getUtilityData, utilityDataCid)
         .then((data: any) => ({ type: 'utility', data, cid: utilityDataCid }))
         .catch((error: any) => ({ type: 'utility', error, cid: utilityDataCid }))
+    );
+  }
+
+  if (floodStormDataCid) {
+    allDataPromises.push(
+      context.effect(getFloodStormData, floodStormDataCid)
+        .then((data: any) => ({ type: 'flood_storm', data, cid: floodStormDataCid }))
+        .catch((error: any) => ({ type: 'flood_storm', error, cid: floodStormDataCid }))
     );
   }
 
@@ -469,6 +714,29 @@ export async function processCountyData(context: any, metadata: any, cid: string
       const utilityEntity = createUtilityEntity(result.cid, result.data);
       context.Utility.set(utilityEntity);
 
+    } else if (result.type === 'flood_storm') {
+      floodStormId = result.cid;
+      const floodStormEntity = createFloodStormEntity(result.cid, result.data);
+      context.FloodStormInformation.set(floodStormEntity);
+
+    } else if (result.type === 'person') {
+      const personEntity = createPersonEntity(result.cid, result.data, propertyEntityId);
+      context.Person.set(personEntity);
+      personEntities.push(personEntity);
+
+    } else if (result.type === 'company') {
+      const companyEntity = createCompanyEntity(result.cid, result.data, propertyEntityId);
+      context.Company.set(companyEntity);
+      companyEntities.push(companyEntity);
+
+    } else if (result.type === 'layout') {
+      const layoutEntity = createLayoutEntity(result.cid, result.data, propertyEntityId);
+      context.Layout.set(layoutEntity);
+      layoutEntities.push(layoutEntity);
+    } else if (result.type === 'file') {
+      const fileEntity = createFileEntity(result.cid, result.data, propertyEntityId);
+      context.File.set(fileEntity);
+      fileEntities.push(fileEntity);
     }
   }
 
@@ -479,8 +747,14 @@ export async function processCountyData(context: any, metadata: any, cid: string
     ipfsId,
     lotId,
     utilityId,
+    floodStormId,
     parcelIdentifier,
     salesHistoryEntities,
-    taxEntities
+    taxEntities,
+    personEntities,
+    companyEntities,
+    layoutEntities,
+    fileEntities,
+    deedEntities
   };
 }

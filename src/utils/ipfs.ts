@@ -10,6 +10,12 @@ import {
   salesHistorySchema,
   taxSchema,
   utilitySchema,
+  floodStormInformationSchema,
+  personSchema,
+  companySchema,
+  layoutSchema,
+  fileSchema,
+  deedSchema,
   type IpfsMetadata,
   type RelationshipData,
   type StructureData,
@@ -19,7 +25,13 @@ import {
   type LotData,
   type SalesHistoryData,
   type TaxData,
-  type UtilityData
+  type UtilityData,
+  type FloodStormInformationData,
+  type PersonData,
+  type CompanyData,
+  type LayoutData,
+  type FileData,
+  type DeedData
 } from "./schemas";
 
 // Convert bytes32 to CID (same as subgraph implementation)
@@ -801,5 +813,371 @@ export const getUtilityData = experimental_createEffect(
 
       context.log.error("Unable to fetch utility data from all gateways", { cid });
       throw new Error(`Failed to fetch utility data for CID: ${cid}`);
+    }
+);
+
+export const getFloodStormData = experimental_createEffect(
+    {
+      name: "getFloodStormData",
+      input: S.string,
+      output: floodStormInformationSchema,
+      cache: true,
+    },
+    async ({ input: cid, context }) => {
+      for (let i = 0; i < endpoints.length; i++) {
+        const endpoint = endpoints[i];
+
+        try {
+          const fullUrl = buildGatewayUrl(endpoint.url, cid, endpoint.token);
+
+          const response = await fetch(fullUrl);
+          if (response.ok) {
+            const data: any = await response.json();
+            if (data && typeof data === 'object') {
+
+              return {
+                community_id: data.community_id || undefined,
+                effective_date: data.effective_date || undefined,
+                evacuation_zone: data.evacuation_zone || undefined,
+                fema_search_url: data.fema_search_url || undefined,
+                flood_insurance_required: data.flood_insurance_required || undefined,
+                flood_zone: data.flood_zone || undefined,
+                map_version: data.map_version || undefined,
+                panel_number: data.panel_number || undefined,
+                request_identifier: data.request_identifier || undefined,
+              };
+            }
+          } else {
+            context.log.warn(`Flood storm data fetch failed - HTTP error`, {
+              cid,
+              endpoint: endpoint.url,
+              status: response.status,
+              statusText: response.statusText
+            });
+          }
+        } catch (e) {
+          const error = e as Error;
+          context.log.warn(`Failed to fetch flood storm data`, {
+            cid,
+            endpoint: endpoint.url,
+            error: error.message,
+            errorCause: error.cause
+          });
+        }
+
+        // Delay between endpoints
+        if (i < endpoints.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_CONFIG.delayBetweenEndpoints));
+        }
+      }
+
+      context.log.error("Unable to fetch flood storm data from all gateways", { cid });
+      throw new Error(`Failed to fetch flood storm data for CID: ${cid}`);
+    }
+);
+
+export const getPersonData = experimental_createEffect(
+    {
+      name: "getPersonData",
+      input: S.string,
+      output: personSchema,
+      cache: true,
+    },
+    async ({ input: cid, context }) => {
+      for (let i = 0; i < endpoints.length; i++) {
+        const endpoint = endpoints[i];
+
+        try {
+          const fullUrl = buildGatewayUrl(endpoint.url, cid, endpoint.token);
+
+          const response = await fetch(fullUrl);
+          if (response.ok) {
+            const data: any = await response.json();
+            if (data && typeof data === 'object') {
+
+              return {
+                birth_date: data.birth_date || undefined,
+                first_name: data.first_name,
+                last_name: data.last_name,
+                middle_name: data.middle_name || undefined,
+                prefix_name: data.prefix_name || undefined,
+                request_identifier: data.request_identifier || undefined,
+                suffix_name: data.suffix_name || undefined,
+                us_citizenship_status: data.us_citizenship_status || undefined,
+                veteran_status: data.veteran_status || undefined,
+              };
+            }
+          } else {
+            context.log.warn(`Person data fetch failed - HTTP error`, {
+              cid,
+              endpoint: endpoint.url,
+              status: response.status,
+              statusText: response.statusText
+            });
+          }
+        } catch (e) {
+          const error = e as Error;
+          context.log.warn(`Failed to fetch person data`, {
+            cid,
+            endpoint: endpoint.url,
+            error: error.message,
+            errorCause: error.cause
+          });
+        }
+
+        // Delay between endpoints
+        if (i < endpoints.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_CONFIG.delayBetweenEndpoints));
+        }
+      }
+
+      context.log.error("Unable to fetch person data from all gateways", { cid });
+      throw new Error(`Failed to fetch person data for CID: ${cid}`);
+    }
+);
+
+export const getCompanyData = experimental_createEffect(
+    {
+      name: "getCompanyData",
+      input: S.string,
+      output: companySchema,
+      cache: true,
+    },
+    async ({ input: cid, context }) => {
+      for (let i = 0; i < endpoints.length; i++) {
+        const endpoint = endpoints[i];
+
+        try {
+          const fullUrl = buildGatewayUrl(endpoint.url, cid, endpoint.token);
+
+          const response = await fetch(fullUrl);
+          if (response.ok) {
+            const data: any = await response.json();
+            if (data && typeof data === 'object') {
+
+              return {
+                name: data.name || undefined,
+                request_identifier: data.request_identifier || undefined,
+              };
+            }
+          } else {
+            context.log.warn(`Company data fetch failed - HTTP error`, {
+              cid,
+              endpoint: endpoint.url,
+              status: response.status,
+              statusText: response.statusText
+            });
+          }
+        } catch (e) {
+          const error = e as Error;
+          context.log.warn(`Failed to fetch company data`, {
+            cid,
+            endpoint: endpoint.url,
+            error: error.message,
+            errorCause: error.cause
+          });
+        }
+
+        // Delay between endpoints
+        if (i < endpoints.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_CONFIG.delayBetweenEndpoints));
+        }
+      }
+
+      context.log.error("Unable to fetch company data from all gateways", { cid });
+      throw new Error(`Failed to fetch company data for CID: ${cid}`);
+    }
+);
+
+export const getLayoutData = experimental_createEffect(
+    {
+      name: "getLayoutData",
+      input: S.string,
+      output: layoutSchema,
+      cache: true,
+    },
+    async ({ input: cid, context }) => {
+      for (let i = 0; i < endpoints.length; i++) {
+        const endpoint = endpoints[i];
+
+        try {
+          const fullUrl = buildGatewayUrl(endpoint.url, cid, endpoint.token);
+
+          const response = await fetch(fullUrl);
+          if (response.ok) {
+            const data: any = await response.json();
+            if (data && typeof data === 'object') {
+
+              return {
+                cabinet_style: data.cabinet_style || undefined,
+                clutter_level: data.clutter_level || undefined,
+                condition_issues: data.condition_issues || undefined,
+                countertop_material: data.countertop_material || undefined,
+                decor_elements: data.decor_elements || undefined,
+                design_style: data.design_style || undefined,
+                fixture_finish_quality: data.fixture_finish_quality || undefined,
+                floor_level: data.floor_level || undefined,
+                flooring_material_type: data.flooring_material_type || undefined,
+                flooring_wear: data.flooring_wear || undefined,
+                furnished: data.furnished || undefined,
+                has_windows: data.has_windows || undefined,
+                is_exterior: data.is_exterior,
+                is_finished: data.is_finished,
+                lighting_features: data.lighting_features || undefined,
+                natural_light_quality: data.natural_light_quality || undefined,
+                paint_condition: data.paint_condition || undefined,
+                pool_condition: data.pool_condition || undefined,
+                pool_equipment: data.pool_equipment || undefined,
+                pool_surface_type: data.pool_surface_type || undefined,
+                pool_type: data.pool_type || undefined,
+                pool_water_quality: data.pool_water_quality || undefined,
+                request_identifier: data.request_identifier || undefined,
+                safety_features: data.safety_features || undefined,
+                size_square_feet: data.size_square_feet || undefined,
+                spa_type: data.spa_type || undefined,
+                space_index: data.space_index,
+                space_type: data.space_type || undefined,
+                view_type: data.view_type || undefined,
+                visible_damage: data.visible_damage || undefined,
+                window_design_type: data.window_design_type || undefined,
+                window_material_type: data.window_material_type || undefined,
+                window_treatment_type: data.window_treatment_type || undefined,
+              };
+            }
+          } else {
+            context.log.warn(`Layout data fetch failed - HTTP error`, {
+              cid,
+              endpoint: endpoint.url,
+              status: response.status,
+              statusText: response.statusText
+            });
+          }
+        } catch (e) {
+          const error = e as Error;
+          context.log.warn(`Failed to fetch layout data`, {
+            cid,
+            endpoint: endpoint.url,
+            error: error.message,
+            errorCause: error.cause
+          });
+        }
+
+        // Delay between endpoints
+        if (i < endpoints.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_CONFIG.delayBetweenEndpoints));
+        }
+      }
+
+      context.log.error("Unable to fetch layout data from all gateways", { cid });
+      throw new Error(`Failed to fetch layout data for CID: ${cid}`);
+    }
+);
+
+export const getFileData = experimental_createEffect(
+    {
+      name: "getFileData",
+      input: S.string,
+      output: fileSchema,
+      cache: true,
+    },
+    async ({ input: cid, context }) => {
+      for (let i = 0; i < endpoints.length; i++) {
+        const endpoint = endpoints[i];
+
+        try {
+          const fullUrl = buildGatewayUrl(endpoint.url, cid, endpoint.token);
+
+          const response = await fetch(fullUrl);
+          if (response.ok) {
+            const data: any = await response.json();
+            if (data && typeof data === 'object') {
+
+              return {
+                document_type: data.document_type || undefined,
+                file_format: data.file_format || undefined,
+                ipfs_url: data.ipfs_url || undefined,
+                name: data.name || undefined,
+                original_url: data.original_url || undefined,
+                request_identifier: data.request_identifier || undefined,
+              };
+            }
+          } else {
+            context.log.warn(`File data fetch failed - HTTP error`, {
+              cid,
+              endpoint: endpoint.url,
+              status: response.status,
+              statusText: response.statusText
+            });
+          }
+        } catch (e) {
+          const error = e as Error;
+          context.log.warn(`Failed to fetch file data`, {
+            cid,
+            endpoint: endpoint.url,
+            error: error.message,
+            errorCause: error.cause
+          });
+        }
+
+        // Delay between endpoints
+        if (i < endpoints.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_CONFIG.delayBetweenEndpoints));
+        }
+      }
+
+      context.log.error("Unable to fetch file data from all gateways", { cid });
+      throw new Error(`Failed to fetch file data for CID: ${cid}`);
+    }
+);
+
+export const getDeedData = experimental_createEffect(
+    {
+      name: "getDeedData",
+      input: S.string,
+      output: deedSchema,
+      cache: true,
+    },
+    async ({ input: cid, context }) => {
+      for (let i = 0; i < endpoints.length; i++) {
+        const endpoint = endpoints[i];
+
+        try {
+          const fullUrl = buildGatewayUrl(endpoint.url, cid, endpoint.token);
+
+          const response = await fetch(fullUrl);
+          if (response.ok) {
+            const data: any = await response.json();
+            if (data && typeof data === 'object') {
+
+              return {
+                deed_type: data.deed_type,
+              };
+            }
+          } else {
+            context.log.warn(`Deed data fetch failed - HTTP error`, {
+              cid,
+              endpoint: endpoint.url,
+              status: response.status,
+              statusText: response.statusText
+            });
+          }
+        } catch (e) {
+          const error = e as Error;
+          context.log.warn(`Failed to fetch deed data`, {
+            cid,
+            endpoint: endpoint.url,
+            error: error.message,
+            errorCause: error.cause
+          });
+        }
+
+        // Delay between endpoints
+        if (i < endpoints.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_CONFIG.delayBetweenEndpoints));
+        }
+      }
+
+      context.log.error("Unable to fetch deed data from all gateways", { cid });
+      throw new Error(`Failed to fetch deed data for CID: ${cid}`);
     }
 );

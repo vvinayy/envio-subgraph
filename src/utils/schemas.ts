@@ -22,6 +22,24 @@ export const ipfsMetadataSchema = S.schema({
     property_has_utility: S.optional(S.schema({
       "/": S.string
     })),
+    property_has_flood_storm_information: S.optional(S.schema({
+      "/": S.string
+    })),
+    person_has_property: S.optional(S.array(S.schema({
+      "/": S.string
+    }))),
+    company_has_property: S.optional(S.array(S.schema({
+      "/": S.string
+    }))),
+    property_has_layout: S.optional(S.array(S.schema({
+      "/": S.string
+    }))),
+    property_has_file: S.optional(S.array(S.schema({
+      "/": S.string
+    }))),
+    deed_has_file: S.optional(S.array(S.schema({
+      "/": S.string
+    }))),
     property_seed: S.optional(S.schema({
       "/": S.string
     })),
@@ -208,6 +226,90 @@ export const utilitySchema = S.schema({
   water_source_type: S.optional(S.string),
 });
 
+// Flood Storm Information Data Schema
+export const floodStormInformationSchema = S.schema({
+  community_id: S.optional(S.string),
+  effective_date: S.optional(S.string),
+  evacuation_zone: S.optional(S.string),
+  fema_search_url: S.optional(S.string),
+  flood_insurance_required: S.optional(S.boolean),
+  flood_zone: S.optional(S.string),
+  map_version: S.optional(S.string),
+  panel_number: S.optional(S.string),
+  request_identifier: S.optional(S.string),
+});
+
+// Person Data Schema
+export const personSchema = S.schema({
+  birth_date: S.optional(S.string),
+  first_name: S.string,
+  last_name: S.string,
+  middle_name: S.optional(S.string),
+  prefix_name: S.optional(S.string),
+  request_identifier: S.optional(S.string),
+  suffix_name: S.optional(S.string),
+  us_citizenship_status: S.optional(S.string),
+  veteran_status: S.optional(S.boolean),
+});
+
+// Company Data Schema
+export const companySchema = S.schema({
+  name: S.optional(S.string),
+  request_identifier: S.optional(S.string),
+});
+
+// Layout Data Schema
+export const layoutSchema = S.schema({
+  cabinet_style: S.optional(S.string),
+  clutter_level: S.optional(S.string),
+  condition_issues: S.optional(S.string),
+  countertop_material: S.optional(S.string),
+  decor_elements: S.optional(S.string),
+  design_style: S.optional(S.string),
+  fixture_finish_quality: S.optional(S.string),
+  floor_level: S.optional(S.string),
+  flooring_material_type: S.optional(S.string),
+  flooring_wear: S.optional(S.string),
+  furnished: S.optional(S.string),
+  has_windows: S.optional(S.boolean),
+  is_exterior: S.boolean,
+  is_finished: S.boolean,
+  lighting_features: S.optional(S.string),
+  natural_light_quality: S.optional(S.string),
+  paint_condition: S.optional(S.string),
+  pool_condition: S.optional(S.string),
+  pool_equipment: S.optional(S.string),
+  pool_surface_type: S.optional(S.string),
+  pool_type: S.optional(S.string),
+  pool_water_quality: S.optional(S.string),
+  request_identifier: S.optional(S.string),
+  safety_features: S.optional(S.string),
+  size_square_feet: S.optional(S.number),
+  spa_type: S.optional(S.string),
+  space_index: S.number,
+  space_type: S.optional(S.string),
+  view_type: S.optional(S.string),
+  visible_damage: S.optional(S.string),
+  window_design_type: S.optional(S.string),
+  window_material_type: S.optional(S.string),
+  window_treatment_type: S.optional(S.string),
+});
+
+// File Data Schema
+export const fileSchema = S.schema({
+  document_type: S.optional(S.string),
+  file_format: S.optional(S.string),
+  ipfs_url: S.optional(S.string),
+  name: S.optional(S.string),
+  original_url: S.optional(S.string),
+  request_identifier: S.optional(S.string),
+});
+
+// Deed Data Schema
+export const deedSchema = S.schema({
+  deed_type: S.string,
+});
+
 // Inferred Types
 export type IpfsMetadata = S.Infer<typeof ipfsMetadataSchema>;
 export type RelationshipData = S.Infer<typeof relationshipSchema>;
@@ -219,3 +321,9 @@ export type LotData = S.Infer<typeof lotDataSchema>;
 export type SalesHistoryData = S.Infer<typeof salesHistorySchema>;
 export type TaxData = S.Infer<typeof taxSchema>;
 export type UtilityData = S.Infer<typeof utilitySchema>;
+export type FloodStormInformationData = S.Infer<typeof floodStormInformationSchema>;
+export type PersonData = S.Infer<typeof personSchema>;
+export type CompanyData = S.Infer<typeof companySchema>;
+export type LayoutData = S.Infer<typeof layoutSchema>;
+export type FileData = S.Infer<typeof fileSchema>;
+export type DeedData = S.Infer<typeof deedSchema>;

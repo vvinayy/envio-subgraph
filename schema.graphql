@@ -228,6 +228,94 @@ type Utility {
   water_source_type: String
 }
 
+type FloodStormInformation {
+  id: ID!
+  community_id: String
+  effective_date: String
+  evacuation_zone: String
+  fema_search_url: String
+  flood_insurance_required: Boolean
+  flood_zone: String
+  map_version: String
+  panel_number: String
+  request_identifier: String
+}
+
+type Person {
+  id: ID!
+  birth_date: String
+  first_name: String!
+  last_name: String!
+  middle_name: String
+  prefix_name: String
+  request_identifier: String
+  suffix_name: String
+  us_citizenship_status: String
+  veteran_status: Boolean
+  property_id: String!
+}
+
+type Company {
+  id: ID!
+  name: String
+  request_identifier: String
+  property_id: String!
+}
+
+type Layout {
+  id: ID!
+  cabinet_style: String
+  clutter_level: String
+  condition_issues: String
+  countertop_material: String
+  decor_elements: String
+  design_style: String
+  fixture_finish_quality: String
+  floor_level: String
+  flooring_material_type: String
+  flooring_wear: String
+  furnished: String
+  has_windows: Boolean
+  is_exterior: Boolean!
+  is_finished: Boolean!
+  lighting_features: String
+  natural_light_quality: String
+  paint_condition: String
+  pool_condition: String
+  pool_equipment: String
+  pool_surface_type: String
+  pool_type: String
+  pool_water_quality: String
+  request_identifier: String
+  safety_features: String
+  size_square_feet: Float
+  spa_type: String
+  space_index: Int!
+  space_type: String
+  view_type: String
+  visible_damage: String
+  window_design_type: String
+  window_material_type: String
+  window_treatment_type: String
+  property_id: String!
+}
+
+type File {
+  id: ID!
+  document_type: String
+  file_format: String
+  ipfs_url: String
+  name: String
+  original_url: String
+  request_identifier: String
+  property_id: String!
+}
+
+type Deed {
+  id: ID!
+  deed_type: String!
+}
+
 type DataSubmittedWithLabel {
   id: ID!
   propertyHash: String!
@@ -242,6 +330,11 @@ type DataSubmittedWithLabel {
   ipfs: Ipfs
   lot: Lot
   utility: Utility
+  flood_storm_information: FloodStormInformation
   sales_history: [SalesHistory!]! @derivedFrom(field: "property_id")
   tax: [Tax!]! @derivedFrom(field: "property_id")
+  persons: [Person!]! @derivedFrom(field: "property_id")
+  companies: [Company!]! @derivedFrom(field: "property_id")
+  layouts: [Layout!]! @derivedFrom(field: "property_id")
+  files: [File!]! @derivedFrom(field: "property_id")
 }

@@ -70,6 +70,7 @@ ERC1967Proxy.DataGroupHeartBeat.handler(async ({ event, context }) => {
     let ipfsId: string | undefined;
     let lotId: string | undefined;
     let utilityId: string | undefined;
+    let floodStormId: string | undefined;
 
     if (metadata.label === "County") {
       // Process County data first to get parcel_identifier
@@ -80,6 +81,7 @@ ERC1967Proxy.DataGroupHeartBeat.handler(async ({ event, context }) => {
       ipfsId = result.ipfsId;
       lotId = result.lotId;
       utilityId = result.utilityId;
+      floodStormId = result.floodStormId;
       parcelIdentifier = result.parcelIdentifier;
 
       // Use parcel_identifier as the main entity ID, fallback to propertyHash
@@ -103,6 +105,42 @@ ERC1967Proxy.DataGroupHeartBeat.handler(async ({ event, context }) => {
             property_id: mainEntityId
           };
           context.Tax.set(updatedTaxEntity);
+        }
+
+        // Need to update person entities with correct property_id
+        for (const personEntity of result.personEntities) {
+          const updatedPersonEntity = {
+            ...personEntity,
+            property_id: mainEntityId
+          };
+          context.Person.set(updatedPersonEntity);
+        }
+
+        // Need to update company entities with correct property_id
+        for (const companyEntity of result.companyEntities) {
+          const updatedCompanyEntity = {
+            ...companyEntity,
+            property_id: mainEntityId
+          };
+          context.Company.set(updatedCompanyEntity);
+        }
+
+        // Need to update layout entities with correct property_id
+        for (const layoutEntity of result.layoutEntities) {
+          const updatedLayoutEntity = {
+            ...layoutEntity,
+            property_id: mainEntityId
+          };
+          context.Layout.set(updatedLayoutEntity);
+        }
+
+        // Need to update file entities with correct property_id
+        for (const fileEntity of result.fileEntities) {
+          const updatedFileEntity = {
+            ...fileEntity,
+            property_id: mainEntityId
+          };
+          context.File.set(updatedFileEntity);
         }
       }
 
@@ -139,6 +177,7 @@ ERC1967Proxy.DataGroupHeartBeat.handler(async ({ event, context }) => {
       ipfs_id: ipfsId,
       lot_id: lotId,
       utility_id: utilityId,
+      flood_storm_information_id: floodStormId,
     };
 
     context.DataSubmittedWithLabel.set(labelEntity);
@@ -192,6 +231,7 @@ ERC1967Proxy.DataSubmitted.handler(async ({ event, context }) => {
     let ipfsId: string | undefined;
     let lotId: string | undefined;
     let utilityId: string | undefined;
+    let floodStormId: string | undefined;
 
     if (metadata.label === "County") {
       // Process County data first to get parcel_identifier
@@ -202,6 +242,7 @@ ERC1967Proxy.DataSubmitted.handler(async ({ event, context }) => {
       ipfsId = result.ipfsId;
       lotId = result.lotId;
       utilityId = result.utilityId;
+      floodStormId = result.floodStormId;
       parcelIdentifier = result.parcelIdentifier;
 
       // Use parcel_identifier as the main entity ID, fallback to propertyHash
@@ -225,6 +266,42 @@ ERC1967Proxy.DataSubmitted.handler(async ({ event, context }) => {
             property_id: mainEntityId
           };
           context.Tax.set(updatedTaxEntity);
+        }
+
+        // Need to update person entities with correct property_id
+        for (const personEntity of result.personEntities) {
+          const updatedPersonEntity = {
+            ...personEntity,
+            property_id: mainEntityId
+          };
+          context.Person.set(updatedPersonEntity);
+        }
+
+        // Need to update company entities with correct property_id
+        for (const companyEntity of result.companyEntities) {
+          const updatedCompanyEntity = {
+            ...companyEntity,
+            property_id: mainEntityId
+          };
+          context.Company.set(updatedCompanyEntity);
+        }
+
+        // Need to update layout entities with correct property_id
+        for (const layoutEntity of result.layoutEntities) {
+          const updatedLayoutEntity = {
+            ...layoutEntity,
+            property_id: mainEntityId
+          };
+          context.Layout.set(updatedLayoutEntity);
+        }
+
+        // Need to update file entities with correct property_id
+        for (const fileEntity of result.fileEntities) {
+          const updatedFileEntity = {
+            ...fileEntity,
+            property_id: mainEntityId
+          };
+          context.File.set(updatedFileEntity);
         }
       }
 
@@ -261,6 +338,7 @@ ERC1967Proxy.DataSubmitted.handler(async ({ event, context }) => {
       ipfs_id: ipfsId,
       lot_id: lotId,
       utility_id: utilityId,
+      flood_storm_information_id: floodStormId,
     };
 
     context.DataSubmittedWithLabel.set(labelEntity);
