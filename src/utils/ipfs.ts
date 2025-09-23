@@ -251,25 +251,41 @@ async function fetchDataWithInfiniteRetry<T>(
                 }
             } catch (e) {
                 const error = e as Error;
+                const cause = (error as any)?.cause;
+
+                // Extract detailed error information
+                const errorDetails = {
+                    cid,
+                    endpoint: endpoint.url,
+                    error: error.message,
+                    errorName: error.name,
+                    attempt: totalAttempts,
+                    fullUrl: buildGatewayUrl(endpoint.url, cid, endpoint.token),
+                    errorStack: error.stack,
+                    errorCause: cause,
+                    // Additional diagnostic info
+                    causeCode: cause?.code,
+                    causeErrno: cause?.errno,
+                    causeSystemCall: cause?.syscall,
+                    causeAddress: cause?.address,
+                    causePort: cause?.port,
+                    userAgent: 'Envio-Indexer/1.0',
+                    timestamp: new Date().toISOString(),
+                    // Network diagnostic hints
+                    possibleCause: error.message?.includes('ENOTFOUND') ? 'DNS_RESOLUTION_FAILED' :
+                                 error.message?.includes('ECONNREFUSED') ? 'CONNECTION_REFUSED' :
+                                 error.message?.includes('ETIMEDOUT') ? 'CONNECTION_TIMEOUT' :
+                                 error.message?.includes('ECONNRESET') ? 'CONNECTION_RESET' :
+                                 error.message?.includes('timeout') ? 'TIMEOUT' :
+                                 error.name === 'AbortError' ? 'REQUEST_ABORTED' :
+                                 'UNKNOWN_NETWORK_ERROR'
+                };
 
                 if (shouldRetryIndefinitely(undefined, error)) {
-                    context.log.warn(`${dataType} fetch failed with retriable connection error, will retry indefinitely`, {
-                        cid,
-                        endpoint: endpoint.url,
-                        error: error.message,
-                        errorName: error.name,
-                        attempt: totalAttempts
-                    });
+                    context.log.warn(`${dataType} fetch failed with retriable connection error, will retry indefinitely`, errorDetails);
                 } else {
                     context.log.error(`${dataType} fetch failed with non-retriable error`, {
-                        cid,
-                        endpoint: endpoint.url,
-                        error: error.message,
-                        errorName: error.name,
-                        errorStack: error.stack,
-                        errorCause: (error as any).cause,
-                        fullUrl: buildGatewayUrl(endpoint.url, cid, endpoint.token),
-                        attempt: totalAttempts,
+                        ...errorDetails,
                         errorStringified: JSON.stringify(error, Object.getOwnPropertyNames(error))
                     });
                 }
