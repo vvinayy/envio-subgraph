@@ -258,4 +258,3 @@ ERC1967Proxy.DataSubmitted.handler(async ({ event, context }) => {
     });
   }
 });
-// trigger deployment
