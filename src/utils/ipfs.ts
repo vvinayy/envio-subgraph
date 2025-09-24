@@ -104,7 +104,7 @@ function buildEndpoints() {
     const fallbackEndpoints = [
         { url: "https://sapphire-academic-leech-250.mypinata.cloud/ipfs", token: "CcV1DorYnAo9eZr_P4DXg8TY4SB-QuUw_b6C70JFs2M8aY0fJudBnle2mUyCYyTu" },
         { url: "https://indexing-node-envio.mypinata.cloud/ipfs", token: "iYp6WBHfIL-yzshn3WnFyCJRmIH3iBqwcD9Jou-pgTmtr20GXaDWXxqTg9zOP6dk" },
-        { url: "https://dry-fuchsia-ox.myfilebase.com/ipfs/", token: null },
+        { url: "https://dry-fuchsia-ox.myfilebase.com/ipfs", token: null },
         { url: "https://indexing-node-envio-2.mypinata.cloud/ipfs", token: "OdQztc-h-6PjCKKJnUvYpjjw_m8n4KsRBMRWOGtyipd-KVRG7rTiC2D5bKKBDA2B" },
         { url: "https://indexing-node-envio-3.mypinata.cloud/ipfs", token: "cSEbVBstzkkTTco4oO-iBbuhX_sahOth00XH2rpE7E30IuwnE6A7gdxSa_ZSfWs6" },
         { url: "https://indexing-node-envio-4.mypinata.cloud/ipfs", token: "BZA3Pmr1XNG7HqS49-owAGq0UcHxEmSBBK58-VTN4XeY3cP0DeUFXdhuo6z8sFfk" },
@@ -240,13 +240,14 @@ async function fetchDataWithInfiniteRetry<T>(
                             attempt: totalAttempts
                         });
                     } else {
-                        context.log.warn(`${dataType} fetch failed with non-retriable error`, {
+                        context.log.error(`${dataType} fetch failed with non-retriable error, stopping`, {
                             cid,
                             endpoint: endpoint.url,
                             status: response.status,
                             statusText: response.statusText,
                             attempt: totalAttempts
                         });
+                        throw new Error(`${dataType} fetch failed with non-retriable status ${response.status}: ${response.statusText}`);
                     }
                 }
             } catch (e) {
@@ -284,10 +285,11 @@ async function fetchDataWithInfiniteRetry<T>(
                 if (shouldRetryIndefinitely(undefined, error)) {
                     context.log.warn(`${dataType} fetch failed with retriable connection error, will retry indefinitely`, errorDetails);
                 } else {
-                    context.log.error(`${dataType} fetch failed with non-retriable error`, {
+                    context.log.error(`${dataType} fetch failed with non-retriable error, stopping`, {
                         ...errorDetails,
                         errorStringified: JSON.stringify(error, Object.getOwnPropertyNames(error))
                     });
+                    throw new Error(`${dataType} fetch failed with non-retriable error: ${error.message}`);
                 }
             }
 
