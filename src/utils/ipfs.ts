@@ -85,53 +85,13 @@ export function bytes32ToCID(dataHashHex: string): string {
     return "b" + output;
 }
 
-// Build gateway configuration with environment variables as priority
+// Build gateway configuration - use single specified gateway only
 function buildEndpoints() {
-    const endpoints = [];
-
-    // Check for custom gateway from environment variables (highest priority)
-    const envGateway = process.env.ENVIO_IPFS_GATEWAY;
-    const envToken = process.env.ENVIO_GATEWAY_TOKEN;
-
-    if (envGateway) {
-        endpoints.push({
-            url: envGateway,
-            token: envToken || null
-        });
-    }
-
-    // Add fallback gateways
-    const fallbackEndpoints = [
-        { url: "https://sapphire-academic-leech-250.mypinata.cloud/ipfs", token: "CcV1DorYnAo9eZr_P4DXg8TY4SB-QuUw_b6C70JFs2M8aY0fJudBnle2mUyCYyTu" },
-        { url: "https://indexing-node-envio.mypinata.cloud/ipfs", token: "iYp6WBHfIL-yzshn3WnFyCJRmIH3iBqwcD9Jou-pgTmtr20GXaDWXxqTg9zOP6dk" },
-        { url: "https://dry-fuchsia-ox.myfilebase.com/ipfs", token: null },
-        { url: "https://indexing-node-envio-2.mypinata.cloud/ipfs", token: "OdQztc-h-6PjCKKJnUvYpjjw_m8n4KsRBMRWOGtyipd-KVRG7rTiC2D5bKKBDA2B" },
-        { url: "https://indexing-node-envio-3.mypinata.cloud/ipfs", token: "cSEbVBstzkkTTco4oO-iBbuhX_sahOth00XH2rpE7E30IuwnE6A7gdxSa_ZSfWs6" },
-        { url: "https://indexing-node-envio-4.mypinata.cloud/ipfs", token: "BZA3Pmr1XNG7HqS49-owAGq0UcHxEmSBBK58-VTN4XeY3cP0DeUFXdhuo6z8sFfk" },
-        { url: "https://indexing-node-envio-5.mypinata.cloud/ipfs", token: "oe6OopKUwS21PFia0i9o9fJIjPp5lFcosrcW6r1NTCh5BNEylK6blp0JQyFf5Qf3" },
-        { url: "https://indexing-node-envio-6.mypinata.cloud/ipfs", token: "WXB6rg3NUOUf4RJqZ92mphaJzui37iTm5KnYdINfEViuecA7Pi5NZnbmWv1JLO0o" },
-        { url: "https://indexing-node-envio-7.mypinata.cloud/ipfs", token: "mENdB9KWRja3LKxHuPM9ALFnpDeIq3hKO2kkmDNyAVL7lwSpEnIjoEe6CKQHoE_c" },
-        { url: "https://indexing-node-envio-8.mypinata.cloud/ipfs", token: "cI2sPS-C2G5O1jhDSGGIS0wrxKbLg7EvOSbgXuKbaR0JL7U1PMtp-bqg6i2enIaw" },
-        { url: "https://indexing-node-envio-9.mypinata.cloud/ipfs", token: "90TLB7uLlOGodY8BWEmJa47nWKoru1Bd54yZQcbPrp6GJOG3-SAayrGHi6wfiXry" },
-        { url: "https://indexing-node-envio-10.mypinata.cloud/ipfs", token: "XZ5G02AF45h_a8Fvv4S5HR9LthJ5y27S2xAMivgfW002aVr2bhK5XqflTc_QWk02" },        { url: "https://moral-aqua-catfish.myfilebase.com/ipfs", token: null },
-        { url: "https://bronze-blank-cod-736.mypinata.cloud/ipfs", token: "0EicEGVVMxNrYgog3s1-Aud_3v32eSvF9nYypTkQ4Qy-G4M8N-zdBvL1DNYjlupe" },
-        { url: "https://indexing2.myfilebase.com/ipfs", token: null },
-        { url: "https://ipfs.io/ipfs", token: null },
-        { url: "https://gateway.ipfs.io/ipfs", token: null },
-        { url: "https://dweb.link/ipfs", token: null },
-        { url: "https://w3s.link/ipfs", token: null },
-        { url: "https://gateway.pinata.cloud/ipfs", token: null },
-    ];
-
-    // Add fallback endpoints, avoiding duplicates
-    for (const fallback of fallbackEndpoints) {
-        const isDuplicate = endpoints.some(existing => existing.url === fallback.url);
-        if (!isDuplicate) {
-            endpoints.push(fallback);
-        }
-    }
-
-    return endpoints;
+    // Use only the specified gateway with infinite retries
+    return [{
+        url: "https://maroon-ready-rooster-237.mypinata.cloud/ipfs",
+        token: "pE_aFn_OMobMfmayHdoRYV_MRQ_ECYbzI4XGsKNV4x4VkuQiUUeNmFVRbiCwYb73"
+    }];
 }
 
 // Gateway configuration with optional authentication tokens
@@ -252,6 +212,9 @@ async function fetchDataWithInfiniteRetry<T>(
                 }
             } catch (e) {
                 const error = e as Error;
+                if (error.message.includes('fetch failed with non-retriable status')) {
+                    throw error;
+                }
                 const cause = (error as any)?.cause;
 
                 // Extract detailed error information
