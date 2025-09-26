@@ -131,7 +131,7 @@ function shouldRetryIndefinitely(response?: Response, error?: Error): boolean {
 
     // Retry indefinitely on specific HTTP status codes
     if (response) {
-        return response.status === 429 || response.status === 502 || response.status === 504;
+        return response.status === 429 || response.status === 500 || response.status === 502 || response.status === 504;
     }
 
     return false;
@@ -140,7 +140,7 @@ function shouldRetryIndefinitely(response?: Response, error?: Error): boolean {
 // Helper function for other non-retriable errors (give up after few attempts)
 function shouldRetryLimited(response?: Response, error?: Error): boolean {
     if (response) {
-        return response.status >= 500 && response.status !== 502 && response.status !== 504;
+        return response.status >= 500 && response.status !== 500 && response.status !== 502 && response.status !== 504;
     }
     return false;
 }
