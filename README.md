@@ -59,8 +59,8 @@ To create a new deployment in Envio:
 ### 2. Clone and Setup
 
 ```bash
-git clone <your-repo-url>
-cd envio-graph2
+git clone git@github.com:elephant-xyz/envio-subgraph.git
+cd envio-subgraph
 pnpm install
 ```
 
