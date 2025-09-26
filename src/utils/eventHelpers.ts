@@ -316,7 +316,7 @@ export function createLayoutEntity(layoutId: string, layoutData: any, propertyId
 }
 
 //Helper to create File entity
-export function createFileEntity(fileId: string, fileData: any, propertyId: string): File {
+export function createFileEntity(fileId: string, fileData: any, propertyId: string, deedId?: string): File {
   return {
     id: fileId,
     document_type: fileData.document_type || undefined,
@@ -325,7 +325,17 @@ export function createFileEntity(fileId: string, fileData: any, propertyId: stri
     name: fileData.name || undefined,
     original_url: fileData.original_url || undefined,
     request_identifier: fileData.request_identifier || undefined,
-    property_id: propertyId
+    property_id: propertyId,
+    deed_id: deedId || undefined
+  };
+}
+
+//Helper to create Deed entity
+export function createDeedEntity(deedId: string, deedData: any, salesHistoryId?: string): Deed {
+  return {
+    id: deedId,
+    deed_type: deedData.deed_type,
+    sales_history_id: salesHistoryId || undefined
   };
 }
 
@@ -364,6 +374,7 @@ export async function processCountyData(context: any, metadata: any, cid: string
   const layoutCids = metadata.relationships?.property_has_layout || [];
   const fileCids = metadata.relationships?.property_has_file || [];
   const deedCids = metadata.relationships?.deed_has_file || [];
+  const salesHistoryDeedCids = metadata.relationships?.sales_history_has_deed || [];
 
   if (structureCid) {
     relationshipPromises.push(
@@ -497,6 +508,18 @@ export async function processCountyData(context: any, metadata: any, cid: string
     }
   }
 
+  // Add sales_history_has_deed relationship fetching
+  for (const salesHistoryDeedRef of salesHistoryDeedCids) {
+    const salesHistoryDeedRelCid = salesHistoryDeedRef?.["/"];
+    if (salesHistoryDeedRelCid) {
+        relationshipPromises.push(
+        context.effect(getRelationshipData, salesHistoryDeedRelCid)
+            .then((data: any) => ({ type: 'sales_history_deed_rel', data, cid: salesHistoryDeedRelCid }))
+            .catch((error: any) => ({ type: 'sales_history_deed_rel', error, cid: salesHistoryDeedRelCid }))
+        );
+    }
+  }
+
   const relationshipResults = await Promise.all(relationshipPromises);
 
   // Extract all CIDs for parallel fetching
@@ -595,6 +618,17 @@ export async function processCountyData(context: any, metadata: any, cid: string
           context.effect(getDeedData, targetCid)
               .then((data: any) => ({ type: 'deed', data, cid: targetCid }))
               .catch((error: any) => ({ type: 'deed', error, cid: targetCid }))
+          );
+      }
+    } else if (relationshipResult.type === 'sales_history_deed_rel' && !relationshipResult.error) {
+      // From sales_history_has_deed: get deed data (to) and sales history (from)
+      const deedCid = relationshipResult.data.to?.["/"];
+      const salesHistoryCid = relationshipResult.data.from?.["/"];
+      if (deedCid) {
+          allDataPromises.push(
+          context.effect(getDeedData, deedCid)
+              .then((data: any) => ({ type: 'sales_history_deed', data, cid: deedCid, salesHistoryCid }))
+              .catch((error: any) => ({ type: 'sales_history_deed', error, cid: deedCid, salesHistoryCid }))
           );
       }
     }
@@ -737,6 +771,15 @@ export async function processCountyData(context: any, metadata: any, cid: string
       const fileEntity = createFileEntity(result.cid, result.data, propertyEntityId);
       context.File.set(fileEntity);
       fileEntities.push(fileEntity);
+    } else if (result.type === 'deed') {
+      const deedEntity = createDeedEntity(result.cid, result.data);
+      context.Deed.set(deedEntity);
+      deedEntities.push(deedEntity);
+    } else if (result.type === 'sales_history_deed') {
+      // Create deed entity linked to sales history
+      const deedEntity = createDeedEntity(result.cid, result.data, result.salesHistoryCid);
+      context.Deed.set(deedEntity);
+      deedEntities.push(deedEntity);
     }
   }
 

@@ -41,6 +41,9 @@ export const ipfsMetadataSchema = S.schema({
     deed_has_file: S.optional(S.array(S.schema({
       "/": S.string
     }))),
+    sales_history_has_deed: S.optional(S.array(S.schema({
+      "/": S.string
+    }))),
     property_seed: S.optional(S.schema({
       "/": S.string
     })),

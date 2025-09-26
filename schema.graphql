@@ -140,6 +140,7 @@ type SalesHistory {
   request_identifier: String
   sale_type: String
   property_id: String!
+  deeds: [Deed!]! @derivedFrom(field: "sales_history_id")
 }
 
 type Tax {
@@ -265,11 +266,14 @@ type File {
   original_url: String
   request_identifier: String
   property_id: String!
+  deed_id: String
 }
 
 type Deed {
   id: ID!
   deed_type: String!
+  sales_history_id: String
+  files: [File!]! @derivedFrom(field: "deed_id")
 }
 
 type DataSubmittedWithLabel {
