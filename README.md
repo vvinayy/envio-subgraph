@@ -2,6 +2,36 @@
 
 A blockchain indexer built with Envio that processes property data events from smart contracts and fetches detailed property information from IPFS, including structure, address, and property details.
 
+## Creating a New Deployment
+
+To create a new deployment in Envio:
+
+1. **Open Envio Dashboard**: Go to [Envio](https://envio.dev) and select your indexer
+2. **Update Git Settings**:
+   - Open **Settings**
+   - Set your desired branch name in **Git Release Branch** (e.g., `production`, `staging`)
+   - Click **Update**
+3. **Set Environment Variables**:
+   - Go to **Environment Variables**
+   - Set `ENVIO_START_BLOCK` with the latest block number
+   - Update any other required environment variables
+4. **Create and Push Branch**:
+   - Create a new branch from `main` with the same name you set in Git Release Branch:
+     ```bash
+     git checkout main
+     git pull origin main
+     git checkout -b production  # or your branch name
+     git push origin production
+     ```
+   - Push any changes to trigger deployment:
+     ```bash
+     git commit --allow-empty -m "trigger deployment"
+     git push origin production
+     ```
+5. **Monitor Deployment**:
+   - Return to Envio dashboard
+   - You'll see the deployment has started in your subgraph
+
 ## Features
 
 - **Real-time Event Processing**: Monitors `DataSubmitted` and `DataGroupHeartBeat` events
@@ -43,7 +73,7 @@ Create a `.env` file in the root directory:
 ENVIO_API_TOKEN="your-api-token-from-envio-dashboard"
 
 # Blockchain Configuration
-ENVIO_START_BLOCK="76322351"
+ENVIO_START_BLOCK="START_BLOCK"
 ENVIO_CONTRACT_ADDRESS="0x525E59e4DE2B51f52B9e30745a513E407652AB7c"
 
 # Wallet Address Allowlist (add your wallet addresses)

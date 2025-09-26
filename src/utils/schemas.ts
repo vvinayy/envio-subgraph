@@ -1,6 +1,7 @@
 import { S } from "envio";
 
 // IPFS Metadata Schemas
+//
 export const ipfsMetadataSchema = S.schema({
   label: S.string,
   relationships: S.optional(S.schema({
