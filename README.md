@@ -13,8 +13,21 @@ To create a new deployment in Envio:
    - Click **Update**
 3. **Set Environment Variables**:
    - Go to **Environment Variables**
-   - Set `ENVIO_START_BLOCK` with the latest block number
-   - Update any other required environment variables
+   - Set Env variables
+     ```bash
+      # Envio Configuration
+      ENVIO_API_TOKEN="your-api-token-from-envio-dashboard"
+      
+      # Blockchain Configuration
+      ENVIO_START_BLOCK="START_BLOCK" with the latest block number
+      ENVIO_CONTRACT_ADDRESS="0x525E59e4DE2B51f52B9e30745a513E407652AB7c"
+      
+      # Wallet Address Allowlist (add your wallet addresses)
+      ENVIO_WALLET_ADDRESS="0x2C810CD120eEb840a7012b77a2B4F19889Ecf65C"
+      # Add more wallets with numbered suffixes if needed:
+      # ENVIO_WALLET_ADDRESS_2="0xYourSecondWalletAddress"
+      # ENVIO_WALLET_ADDRESS_3="0xYourThirdWalletAddress"
+     ```
 4. **Create and Push Branch**:
    - Create a new branch from `main` with the same name you set in Git Release Branch:
      ```bash
