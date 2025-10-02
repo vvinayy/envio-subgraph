@@ -387,6 +387,23 @@ function runCountyStatsOnce() {
     Logger.log(`[${COUNTY_SHEET_NAME}] Updated Column B "${HEADER}" for ${lastRow - 1} rows.`);
 }
 
+function createFiveMinuteCostAndMintsTriggerForToday() {
+    // Clean up any existing triggers for today updater
+    ScriptApp.getProjectTriggers().forEach(t => {
+        if (t.getHandlerFunction() === "runDailyCostAndMintsForTodayUtc") {
+            ScriptApp.deleteTrigger(t);
+        }
+    });
+
+    // Create a new 5-minute trigger
+    ScriptApp.newTrigger("runDailyCostAndMintsForTodayUtc")
+        .timeBased()
+        .everyMinutes(5)
+        .create();
+
+    Logger.log("5-minute trigger created for cost+mints (today UTC).");
+}
+
 function createCountyStatsTriggerEvery6h() {
     ScriptApp.getProjectTriggers().forEach(t => {
         if (t.getHandlerFunction() === "runCountyStatsOnce") ScriptApp.deleteTrigger(t);
