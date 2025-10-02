@@ -387,6 +387,13 @@ function runCountyStatsOnce() {
     Logger.log(`[${COUNTY_SHEET_NAME}] Updated Column B "${HEADER}" for ${lastRow - 1} rows.`);
 }
 
+function runDailyCostAndMintsForTodayUtc() {
+    const now = new Date();
+    const todayUtc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    const ymd = toYMD_(todayUtc);
+    runDailyCostAndMintsForDate(ymd);
+}
+
 function createFiveMinuteCostAndMintsTriggerForToday() {
     // Clean up any existing triggers for today updater
     ScriptApp.getProjectTriggers().forEach(t => {
