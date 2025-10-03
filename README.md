@@ -7,7 +7,7 @@ A blockchain indexer built with Envio that processes property data events from s
 To create a new deployment in Envio:  
 
 1. **Open Envio Dashboard**: Go to [Envio](https://envio.dev) and select your indexer 
-2. **Update Git Settings**:
+2. **Update Git Settings**: 
    - Open **Settings**
    - Set your desired branch name in **Git Release Branch** (e.g., `production`, `staging`)
    - Click **Update**
