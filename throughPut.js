@@ -193,33 +193,96 @@ function getSignatureKey_(key, dateStamp, region, service) {
     return hmacBytes_(kService, "aws4_request");
 }
 
-/** ---- Hyperindex: fetch + aggregate mints ---- **/
+// Tunables
+var MINTS_MAX_PAGES     = 200;    // hard cap: 200 * 1000 = 200k rows
+var MINTS_MAX_MS        = 5 * 60 * 1000; // 5 minutes budget
+var MINTS_MAX_RETRIES   = 3;
+
+function sleepMs_(ms) { Utilities.sleep(ms); }
+
 function fetchDailySubmissions_(ymd) {
-    const { start, end } = utcDayToUnixRange_(ymd);
-    let offset = 0, out = [];
+    var tAll = Date.now();
+    var range = utcDayToUnixRange_(ymd);
+    var start = range.start, end = range.end;
+
+    Logger.log("[Mints] START ymd=" + ymd + " start=" + start + " end=" + end +
+        " limit=" + DAILY_MINTS_LIMIT + " MAX_PAGES=" + MINTS_MAX_PAGES);
+
+    var offset = 0, out = [];
+    var page = 0;
+    var lastFirstId = null;
+
     while (true) {
-        const body = JSON.stringify({
+        page++;
+        if (page > MINTS_MAX_PAGES) {
+            Logger.log("[Mints] Reached MAX_PAGES=" + MINTS_MAX_PAGES + ". Stopping.");
+            break;
+        }
+        if ((Date.now() - tAll) > MINTS_MAX_MS) {
+            Logger.log("[Mints] Reached time budget " + MINTS_MAX_MS + " ms. Stopping.");
+            break;
+        }
+
+        var body = JSON.stringify({
             query: DAILY_MINTS_QUERY,
-            variables: { start, end, limit: DAILY_MINTS_LIMIT, offset }
+            variables: { start: start, end: end, limit: DAILY_MINTS_LIMIT, offset: offset }
         });
-        const resp = UrlFetchApp.fetch(HYPERINDEX_ENDPOINT, {
-            method: "post",
-            contentType: "application/json",
-            payload: body,
-            muteHttpExceptions: true
-        });
-        const code = resp.getResponseCode();
-        const txt  = resp.getContentText();
-        if (code < 200 || code >= 300) throw new Error(`Mints HTTP ${code}: ${txt.slice(0,500)}`);
-        const json = JSON.parse(txt);
-        if (json.errors) throw new Error(`Mints GraphQL error(s): ${JSON.stringify(json.errors)}`);
-        const rows = (json.data && json.data.DataSubmittedWithLabel) || [];
+
+        // retries with backoff
+        var attempt = 0, ok = false, txt = "", code = 0, json = null;
+        while (attempt < MINTS_MAX_RETRIES && !ok) {
+            attempt++;
+            var tReq = Date.now();
+            try {
+                var resp = UrlFetchApp.fetch(HYPERINDEX_ENDPOINT, {
+                    method: "post",
+                    contentType: "application/json",
+                    payload: body,
+                    muteHttpExceptions: true
+                });
+                code = resp.getResponseCode();
+                txt  = resp.getContentText();
+                ok   = (code >= 200 && code < 300);
+                Logger.log("[Mints] page " + page + " attempt " + attempt +
+                    " HTTP " + code + " in " + (Date.now() - tReq) + " ms");
+            } catch (e) {
+                Logger.log("[Mints] page " + page + " attempt " + attempt + " threw: " + e.message);
+                ok = false;
+            }
+            if (!ok) sleepMs_(Math.pow(2, attempt - 1) * 250); // 250ms, 500ms, 1000ms
+        }
+        if (!ok) throw new Error("Mints HTTP " + code + ": " + txt.slice(0, 500));
+
+        json = JSON.parse(txt);
+        if (json.errors) throw new Error("Mints GraphQL error(s): " + JSON.stringify(json.errors));
+
+        var rows = (json.data && json.data.DataSubmittedWithLabel) || [];
+        Logger.log("[Mints] page " + page + " rows=" + rows.length + " offset=" + offset);
+
+        // guard against server returning the same page repeatedly
+        if (rows.length > 0) {
+            var firstId = rows[0].id;
+            if (firstId && firstId === lastFirstId) {
+                Logger.log("[Mints] Detected repeated first row id=" + firstId + " on consecutive pages. Stopping.");
+                break;
+            }
+            lastFirstId = firstId;
+        }
+
         out = out.concat(rows);
-        if (rows.length < DAILY_MINTS_LIMIT) break;
+        if (rows.length < DAILY_MINTS_LIMIT) {
+            Logger.log("[Mints] Final page reached (rows < limit).");
+            break;
+        }
+
         offset += DAILY_MINTS_LIMIT;
     }
+
+    Logger.log("[Mints] DONE totalRows=" + out.length + " pages=" + page +
+        " elapsedMs=" + (Date.now() - tAll));
     return out;
 }
+
 
 function aggregatePerSubmitterTotal_(rows) {
     const agg = {}; // submitterLower -> total count
@@ -231,69 +294,126 @@ function aggregatePerSubmitterTotal_(rows) {
     return agg;
 }
 
-/** ---- Combined writer for a specific UTC date ---- **/
+/** ===== Simple timing helper ===== **/
+function logMs_(label, start) {
+    var ms = Date.now() - start;
+    Logger.log(label + ": " + ms + " ms");
+}
+
+/** ---- FULL function with logs ---- **/
 function runDailyCostAndMintsForDate(ymd) {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const sheet = ss.getSheetByName(NODE_SHEET_NAME);
-    if (!sheet) throw new Error(`Sheet "${NODE_SHEET_NAME}" not found.`);
-    const lastRow = sheet.getLastRow();
-    if (lastRow < 2) return;
+    var tAll = Date.now();
+    Logger.log("=== runDailyCostAndMintsForDate START ymd=" + ymd + " ===");
 
-    // Prepare headers and fix positions:
-    const costHeader  = `${ymd} (cost ${COST_METRIC})`;
-    const mintsHeader = `${ymd} (mints)`;
-    const COST_COL_INDEX  = 3; // Column C
-    const MINTS_COL_INDEX = 4; // Column D
-
-    const costCol  = ensureColumnAtIndex_(sheet, COST_COL_INDEX,  costHeader);
-    const mintsCol = ensureColumnAtIndex_(sheet, MINTS_COL_INDEX, mintsHeader);
-    const nowIso = new Date().toISOString();
-    sheet.getRange(1, costCol ).setNote(`Updated: ${nowIso}`);
-    sheet.getRange(1, mintsCol).setNote(`Updated: ${nowIso}`);
-
-    // COSTS (per Account ID in Column B)
-    const acctValues = sheet.getRange(2, NODE_ACCOUNTID_COL, lastRow - 1, 1).getValues()
-        .map(r => (r[0] || "").toString().trim())
-        .filter(v => /^\d{12}$/.test(v));
-
-    let totals = {};
-    if (acctValues.length) {
-        const [y, m, d] = ymd.split("-").map(Number);
-        const startYMD = ymd;
-        const endYMD   = toYMD_(new Date(Date.UTC(y, m - 1, d + 1))); // end exclusive
-        totals = getTotalsForAccountsSince(acctValues, startYMD, endYMD);
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName(NODE_SHEET_NAME);
+    if (!sheet) throw new Error('Sheet "' + NODE_SHEET_NAME + '" not found.');
+    var lastRow = sheet.getLastRow();
+    if (lastRow < 2) {
+        Logger.log("[node] No data rows. Exiting.");
+        logMs_("TOTAL runDailyCostAndMintsForDate", tAll);
+        return;
     }
 
-    const costOutRange = sheet.getRange(2, costCol, lastRow - 1, 1);
-    const costOutVals  = costOutRange.getValues();
-    for (let i = 0; i < lastRow - 1; i++) {
-        const acct = (sheet.getRange(i + 2, NODE_ACCOUNTID_COL).getValue() || "").toString().trim();
-        costOutVals[i][0] = /^\d{12}$/.test(acct) ? parseFloat(totals[acct] || 0) : "";
-    }
-    costOutRange.setValues(costOutVals).setNumberFormat("0.00");
+    // Prepare headers and fix positions
+    var tHeaders = Date.now();
+    var costHeader  = ymd + " (cost " + COST_METRIC + ")";
+    var mintsHeader = ymd + " (mints)";
+    var COST_COL_INDEX  = 3; // Column C
+    var MINTS_COL_INDEX = 4; // Column D
 
-    // MINTS (per wallet in Column A)
-    let rows = [];
+    var costCol  = ensureColumnAtIndex_(sheet, COST_COL_INDEX,  costHeader);
+    var mintsCol = ensureColumnAtIndex_(sheet, MINTS_COL_INDEX, mintsHeader);
+
+    var nowIso = new Date().toISOString();
+    sheet.getRange(1, costCol ).setNote("Updated: " + nowIso);
+    sheet.getRange(1, mintsCol).setNote("Updated: " + nowIso);
+    logMs_("Headers/ensureColumnAtIndex_", tHeaders);
+
+    // ===== COSTS (per Account ID in Column B) =====
+    var tAcctRead = Date.now();
+    var acctValuesByRow = sheet
+        .getRange(2, NODE_ACCOUNTID_COL, lastRow - 1, 1)
+        .getValues()
+        .map(function (r) { return (r[0] || "").toString().trim(); });
+
+    var acctValuesFiltered = acctValuesByRow.filter(function (v) { return /^\d{12}$/.test(v); });
+    Logger.log("Accounts total rows: " + (lastRow - 1));
+    Logger.log("Valid 12-digit accounts found: " + acctValuesFiltered.length);
+    logMs_("Read account IDs (bulk)", tAcctRead);
+
+    var totals = {};
+    if (acctValuesFiltered.length) {
+        var tCE = Date.now();
+        var parts = ymd.split("-").map(Number);
+        var startYMD = ymd;
+        var endYMD   = toYMD_(new Date(Date.UTC(parts[0], parts[1]-1, parts[2] + 1))); // end exclusive
+
+        Logger.log("Calling Cost Explorer: Start=" + startYMD + " End(exclusive)=" + endYMD + " Metric=" + COST_METRIC);
+        totals = getTotalsForAccountsSince(acctValuesFiltered, startYMD, endYMD);
+        logMs_("CostExplorer (network + parse)", tCE);
+
+        var tCEPost = Date.now();
+        var keysCount = Object.keys(totals).length;
+        Logger.log("CostExplorer totals returned for accounts: " + keysCount);
+        logMs_("CostExplorer (post-process)", tCEPost);
+    } else {
+        Logger.log("No valid 12-digit accounts to query in Cost Explorer.");
+    }
+
+    var tCostWrite = Date.now();
+    var costOutVals = new Array(lastRow - 1);
+    for (var i = 0; i < lastRow - 1; i++) {
+        var acct = acctValuesByRow[i];
+        var val = /^\d{12}$/.test(acct) ? parseFloat(totals[acct] || 0) : "";
+        costOutVals[i] = [val];
+    }
+    sheet.getRange(2, costCol, lastRow - 1, 1).setValues(costOutVals).setNumberFormat("0.00");
+    logMs_("Sheet write (COSTS)", tCostWrite);
+
+    // ===== MINTS (per wallet in Column A) =====
+    var tWalletRead = Date.now();
+    var wallets = sheet
+        .getRange(2, NODE_WALLET_COL, lastRow - 1, 1)
+        .getValues()
+        .map(function (r) { return (r[0] || "").toString().trim().toLowerCase(); });
+    var uniqueWallets = Array.from(new Set(wallets.filter(Boolean)));
+    Logger.log("Wallet rows: " + wallets.length + " | unique non-empty: " + uniqueWallets.length);
+    logMs_("Read wallets (bulk)", tWalletRead);
+
+    var tMintsFetch = Date.now();
+    var rows = [];
     try {
+        // Uses your existing fetcher that pages the entire day.
+        // (If you later add a wallet-filtered version, logs will still show the timing impact clearly.)
         rows = fetchDailySubmissions_(ymd);
+        Logger.log("Hyperindex rows fetched for " + ymd + ": " + rows.length);
     } catch (e) {
-        sheet.getRange(1, mintsCol).setNote(`Mints fetch failed: ${e.message} @ ${nowIso}`);
+        sheet.getRange(1, mintsCol).setNote("Mints fetch failed: " + e.message + " @ " + nowIso);
+        Logger.log("Hyperindex fetch FAILED: " + e.message);
         rows = [];
     }
-    const agg = aggregatePerSubmitterTotal_(rows);
+    logMs_("Hyperindex (network + parse)", tMintsFetch);
 
-    const wallets = sheet.getRange(2, NODE_WALLET_COL, lastRow - 1, 1).getValues()
-        .map(r => (r[0] || "").toString().trim().toLowerCase());
+    var tAgg = Date.now();
+    var agg = aggregatePerSubmitterTotal_(rows); // submitterLower -> total
+    Logger.log("Aggregated submitters: " + Object.keys(agg).length);
+    logMs_("Aggregate mints", tAgg);
 
-    const mintsOutRange = sheet.getRange(2, mintsCol, lastRow - 1, 1);
-    const mintsOutVals  = Array.from({ length: lastRow - 1 }, () => [""]);
-    for (let i = 0; i < wallets.length; i++) {
-        const w = wallets[i];
-        const total = Number(agg[w] || 0);
-        mintsOutVals[i][0] = total > 0 ? total : "";
+    var tMintsWrite = Date.now();
+    var mintsOutVals = new Array(lastRow - 1);
+    for (var j = 0; j < wallets.length; j++) {
+        var w = wallets[j];
+        var total = Number(agg[w] || 0);
+        mintsOutVals[j] = [ total > 0 ? total : "" ];
     }
-    mintsOutRange.setValues(mintsOutVals).setNumberFormat("0");
+    sheet.getRange(2, mintsCol, lastRow - 1, 1).setValues(mintsOutVals).setNumberFormat("0");
+    logMs_("Sheet write (MINTS)", tMintsWrite);
+
+    logMs_("TOTAL runDailyCostAndMintsForDate", tAll);
+    Logger.log("=== runDailyCostAndMintsForDate END ymd=" + ymd + " ===");
 }
+
 
 function runDailyCostAndMintsForYesterdayUtc() {
     const now = new Date();
@@ -387,13 +507,6 @@ function runCountyStatsOnce() {
     Logger.log(`[${COUNTY_SHEET_NAME}] Updated Column B "${HEADER}" for ${lastRow - 1} rows.`);
 }
 
-function runDailyCostAndMintsForTodayUtc() {
-    const now = new Date();
-    const todayUtc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-    const ymd = toYMD_(todayUtc);
-    runDailyCostAndMintsForDate(ymd);
-}
-
 function createFiveMinuteCostAndMintsTriggerForToday() {
     // Clean up any existing triggers for today updater
     ScriptApp.getProjectTriggers().forEach(t => {
@@ -411,12 +524,26 @@ function createFiveMinuteCostAndMintsTriggerForToday() {
     Logger.log("5-minute trigger created for cost+mints (today UTC).");
 }
 
-function createCountyStatsTriggerEvery6h() {
-    ScriptApp.getProjectTriggers().forEach(t => {
-        if (t.getHandlerFunction() === "runCountyStatsOnce") ScriptApp.deleteTrigger(t);
+function createCountyStatsTriggerEvery5m() {
+    // Clean up any existing triggers for county stats
+    ScriptApp.getProjectTriggers().forEach(function(t) {
+        if (t.getHandlerFunction() === "runCountyStatsOnce") {
+            ScriptApp.deleteTrigger(t);
+        }
     });
-    ScriptApp.newTrigger("runCountyStatsOnce").timeBased().everyHours(6).create();
-    Logger.log("6-hour trigger created for county stats.");
+
+    // Create a new trigger every 5 minutes
+    ScriptApp.newTrigger("runCountyStatsOnce")
+        .timeBased()
+        .everyMinutes(5)
+        .create();
+
+    Logger.log("5-minute trigger created for county stats.");
+}
+
+function logMs_(label, start) {
+    const ms = Date.now() - start;
+    Logger.log(`${label}: ${ms} ms`);
 }
 
 function disableCountyStatsTrigger() {
@@ -432,4 +559,11 @@ function disableCountyStatsTrigger() {
 function updateCountyNodeSheets() {
     runDailyCostAndMintsForYesterdayUtc();
     runCountyStatsOnce();
+}
+
+function runDailyCostAndMintsForTodayUtc() {
+    const now = new Date();
+    const todayUtc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    const ymd = toYMD_(todayUtc);
+    runDailyCostAndMintsForDate(ymd);
 }
