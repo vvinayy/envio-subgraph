@@ -22,7 +22,7 @@ To create a new deployment in Envio:
       ENVIO_START_BLOCK="START_BLOCK" with the latest block number
       ENVIO_CONTRACT_ADDRESS="0x525E59e4DE2B51f52B9e30745a513E407652AB7c"
       
-      # Wallet Address Allowlist (add your wallet addresses)
+      # Wallet Address Allowlist (add your wallet addresses) 
       ENVIO_WALLET_ADDRESS="0x2C810CD120eEb840a7012b77a2B4F19889Ecf65C"
       # Add more wallets with numbered suffixes if needed:
       # ENVIO_WALLET_ADDRESS_2="0xYourSecondWalletAddress"
